@@ -56,7 +56,6 @@ func init() {
 	user, _ := user.Current()
 
 	gvfsPath = fmt.Sprintf(gvfsPath, user.Uid)
-	fmt.Println(gvfsPath)
 }
 
 func main() {
@@ -122,8 +121,6 @@ type Tab struct {
 }
 
 func NewTab(filename string) {
-	fmt.Println("NewTab for file:", filename)
-	// var err error
 	var newfile bool
 
 	if tabsContains(filename) {
