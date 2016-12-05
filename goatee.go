@@ -63,7 +63,7 @@ func init() {
 func main() {
 	gtk.Init(nil)
 	window = CreateWindow()
-	window.Connect("destroy", gtk.MainQuit)
+	window.Connect("destroy", exit)
 	window.Connect("check-resize", windowResize)
 
 	window.ShowAll()
@@ -78,6 +78,14 @@ func main() {
 	NewTab(filename)
 
 	gtk.Main()
+}
+
+func exit() {
+	for _, t := range tabs {
+		t.File.Close()
+	}
+
+	gtk.MainQuit()
 }
 
 func tabsContains(filename string) bool {
@@ -186,7 +194,7 @@ func NewTab(filename string) {
 
 	ct := currentTab()
 	if ct != nil && !newfile && len(ct.Data) == 0 {
-		closeTab()
+		closeCurrentTab()
 	}
 
 	t.swin = gtk.NewScrolledWindow(nil, nil)
@@ -512,7 +520,7 @@ func (t *Tab) Find(substr string) {
 	// }
 }
 
-func closeTab() {
+func closeCurrentTab() {
 	n := notebook.GetCurrentPage()
 	notebook.RemovePage(tabs[n].swin, n)
 	tabs[n].File.Close()

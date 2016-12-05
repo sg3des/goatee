@@ -74,7 +74,7 @@ func CreateUIManager() *gtk.UIManager {
 }
 
 func OnMenuFileQuit() {
-	gtk.MainQuit()
+	exit()
 }
 
 func OnMenuFileOpen() {
@@ -138,10 +138,10 @@ func OnMenuNewTab() {
 }
 
 func OnMenuCloseTab() {
-	closeTab()
+	closeCurrentTab()
 
 	if len(tabs) == 0 {
-		gtk.MainQuit()
+		exit()
 	}
 }
 
