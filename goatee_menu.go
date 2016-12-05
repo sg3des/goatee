@@ -10,6 +10,8 @@ import (
 
 var (
 	menubar *gtk.Widget
+	footer  *gtk.HBox
+	findbar *gtk.Entry
 )
 
 func CreateMenu(w *gtk.Window, vbox *gtk.VBox) {
@@ -18,11 +20,26 @@ func CreateMenu(w *gtk.Window, vbox *gtk.VBox) {
 	accel_group := ui_manager.GetAccelGroup()
 	w.AddAccelGroup(accel_group)
 	AddFileMenuActions(action_group)
+	AddEditMenuActions(action_group)
 	AddChoicesMenuActions(action_group)
+
 	ui_manager.InsertActionGroup(action_group, 0)
 	menubar = ui_manager.GetWidget("/MenuBar")
 
 	vbox.PackStart(menubar, false, false, 0)
+
+	footer = gtk.NewHBox(false, 0)
+	ebuff := gtk.NewEntryBuffer("")
+	findbar = gtk.NewEntryWithBuffer(ebuff)
+	findbar.Connect("changed", OnFindInput)
+	footer.PackStart(findbar, true, true, 1)
+
+	vbox.PackEnd(footer, false, false, 0)
+}
+
+func OnFindInput() {
+	t := currentTab()
+	t.Find(findbar.GetText())
 }
 
 func CreateUIManager() *gtk.UIManager {
@@ -37,6 +54,9 @@ func CreateUIManager() *gtk.UIManager {
       <menuitem action='FileSaveAs' />
       <separator />
       <menuitem action='FileQuit' />
+    </menu>
+    <menu action='EditMenu'>
+      <menuitem action='Find'/>
     </menu>
     <menu action='ChoicesMenu'>
       <menuitem action='ChoiceOne'/>
@@ -125,6 +145,16 @@ func OnMenuCloseTab() {
 	}
 }
 
+func OnMenuFind() {
+	if footer.GetVisible() {
+		footer.SetVisible(false)
+		currentTab().sourceview.GrabFocus()
+	} else {
+		footer.SetVisible(true)
+		findbar.GrabFocus()
+	}
+}
+
 func AddFileMenuActions(action_group *gtk.ActionGroup) {
 	action_group.AddAction(gtk.NewAction("FileMenu", "File", "", ""))
 
@@ -151,6 +181,14 @@ func AddFileMenuActions(action_group *gtk.ActionGroup) {
 	action_filequit := gtk.NewAction("FileQuit", "", "", gtk.STOCK_QUIT)
 	action_filequit.Connect("activate", OnMenuFileQuit)
 	action_group.AddActionWithAccel(action_filequit, "")
+}
+
+func AddEditMenuActions(action_group *gtk.ActionGroup) {
+	action_group.AddAction(gtk.NewAction("EditMenu", "Edit", "", ""))
+
+	action_find := gtk.NewAction("Find", "Find...", "", gtk.STOCK_FIND)
+	action_find.Connect("activate", OnMenuFind)
+	action_group.AddActionWithAccel(action_find, "")
 }
 
 func AddChoicesMenuActions(action_group *gtk.ActionGroup) {

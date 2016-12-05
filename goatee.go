@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/url"
 	"os"
 	"os/user"
 	"path"
+	"regexp"
 	"strings"
 	"unsafe"
 
@@ -66,6 +68,7 @@ func main() {
 
 	window.ShowAll()
 	menubar.SetVisible(false)
+	footer.SetVisible(false)
 
 	analyzer, err = enca.New("ru")
 	if err != nil {
@@ -118,6 +121,8 @@ type Tab struct {
 	label        *gtk.Label
 	sourcebuffer *gsv.SourceBuffer
 	sourceview   *gsv.SourceView
+
+	tagfind *gtk.TextTag
 }
 
 func NewTab(filename string) {
@@ -275,6 +280,11 @@ func (t *Tab) DetectLanguage() string {
 		return f
 	}
 
+	maybexml := strings.Trim(_line[0], "<?#")
+	if issetLanguage(maybexml) {
+		return maybexml
+	}
+
 	return strings.ToLower(gsv.NewSourceLanguageManager().GuessLanguage(t.Filename, "").GetName())
 }
 
@@ -342,13 +352,19 @@ func (t *Tab) onchange() {
 	t.updateTabColor(255, 0, 0)
 }
 
-func (t *Tab) updateTabColor(r, g, b uint8) {
+func (t *Tab) updateTabColor(r, g, b uint16) {
 	if t.ReadOnly {
 		r -= 50
 		g += 100
 		b += 100
 		// t.label.
 	}
+	r = uint16(math.Pow(float64(r), 2))
+	g = uint16(math.Pow(float64(g), 2))
+	b = uint16(math.Pow(float64(b), 2))
+
+	// fmt.Println(r, float64(r), math.Pow(float64(r), 2))
+
 	color := gdk.NewColorRGB(r, g, b)
 	t.label.ModifyFG(gtk.STATE_NORMAL, color)
 	// t.label.ModifyFG(gtk.STATE_INSENSITIVE, color)
@@ -378,9 +394,9 @@ func (t *Tab) updateTabColor(r, g, b uint8) {
 func (t *Tab) resetTabColor() {
 	var color *gdk.Color
 	if t.ReadOnly {
-		color = gdk.NewColorRGB(120, 120, 120)
+		color = gdk.NewColorRGB(30400, 30400, 30400)
 	} else {
-		color = gdk.NewColorRGB(200, 200, 200)
+		color = gdk.NewColorRGB(40000, 40000, 40000)
 	}
 	t.label.ModifyFG(gtk.STATE_NORMAL, color)
 	// t.label.ModifyFG(gtk.STATE_INSENSITIVE, color)
@@ -431,6 +447,69 @@ func (t *Tab) GetText() []byte {
 	t.sourcebuffer.GetStartIter(&start)
 	t.sourcebuffer.GetEndIter(&end)
 	return []byte(t.sourcebuffer.GetText(&start, &end, true))
+}
+
+func (t *Tab) Find(substr string) {
+	// text := string(t.GetText())
+
+	if t.tagfind != nil {
+		tabletag := t.sourcebuffer.GetTagTable()
+		tabletag.Remove(t.tagfind)
+	}
+
+	if len(substr) == 0 {
+		t.tagfind = nil
+		return
+	}
+
+	reg, err := regexp.Compile(substr)
+	if err != nil {
+		t.tagfind = nil
+		log.Println("invalid regexp query", err)
+		return
+	}
+
+	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
+	matches := reg.FindAllIndex(t.GetText(), -1)
+
+	for n, index := range matches {
+		var start gtk.TextIter
+		var end gtk.TextIter
+		t.sourcebuffer.GetIterAtOffset(&start, index[0])
+		t.sourcebuffer.GetIterAtOffset(&end, index[1])
+		t.sourcebuffer.ApplyTag(t.tagfind, &start, &end)
+		if n == 0 {
+			t.sourceview.ScrollToIter(&start, 0, false, 0, 0)
+		}
+	}
+	fmt.Println(matches)
+
+	// var i int
+	// var offset int
+	// for {
+	// 	i++
+	// 	n := strings.Index(text, substr)
+	// 	if n == -1 {
+	// 		t.tagfind = nil
+	// 		break
+	// 	}
+
+	// 	var start gtk.TextIter
+	// 	var end gtk.TextIter
+	// 	t.sourcebuffer.GetIterAtOffset(&start, offset+n)
+	// 	t.sourcebuffer.GetIterAtOffset(&end, offset+n+len(substr))
+
+	// 	t.sourcebuffer.ApplyTag(t.tagfind, &start, &end)
+	// 	start.Free()
+	// 	end.Free()
+
+	// 	offset += n + len(substr)
+	// 	text = text[offset:]
+
+	// 	if i == 1 {
+	// 		t.sourceview.ScrollToIter(&start, 0, false, 0, 0)
+	// 	}
+	// }
 }
 
 func closeTab() {
