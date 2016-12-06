@@ -192,7 +192,6 @@ func NewTab(filename string) {
 					return
 				}
 			}
-			// t.Text = string(t.Data)
 		}
 	}
 
