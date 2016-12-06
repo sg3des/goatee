@@ -9,7 +9,7 @@
  * multiple homogeneous(*full width*) Tabs
  * auto detect charset
  * smart detect text file language
- * binary view(`hexdump -C`)
+ * auto hex view(hexdump) for binary files
 
 # Requirements
  

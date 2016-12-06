@@ -181,6 +181,7 @@ func NewTab(filename string) {
 		if err != nil {
 			t.Encoding = "binary"
 			t.Data = []byte(hex.Dump(t.Data))
+			// t.Data = []byte(t.Hex())
 		} else {
 			t.Language = t.DetectLanguage()
 
@@ -213,13 +214,15 @@ func NewTab(filename string) {
 	t.sourceview = gsv.NewSourceViewWithBuffer(t.sourcebuffer)
 	t.sourceview.SetHighlightCurrentLine(conf.TextView.LineHightlight)
 	t.sourceview.ModifyFontEasy(conf.TextView.Font)
+
 	if t.Encoding != "binary" {
 		t.sourceview.SetShowLineNumbers(conf.TextView.LineNumbers)
+		t.sourceview.SetTabWidth(uint(conf.TextView.IndentWidth))
+		t.sourceview.SetInsertSpacesInsteadOfTabs(conf.TextView.IndentSpace)
+
 		if conf.TextView.WordWrap {
 			t.sourceview.SetWrapMode(gtk.WRAP_WORD_CHAR)
 		}
-		t.sourceview.SetTabWidth(uint(conf.TextView.IndentWidth))
-		t.sourceview.SetInsertSpacesInsteadOfTabs(conf.TextView.IndentSpace)
 	}
 
 	t.DragAndDrop()
@@ -253,17 +256,41 @@ func NewTab(filename string) {
 	// homogenousTabs()
 }
 
-func toHex(data []byte) (hexdata string) {
-	reader := bytes.NewReader(data)
+func (t *Tab) Hex() string {
+	// t.File.Seek(0, 0)
+	// var hexdata []string
+	// var b = make([]byte, 16)
+	// var err error
+	// var n int
+	// for err == nil {
+	// 	n, err = t.File.Read(b)
+	// 	b = b[:n]
+
+	// 	var line []string
+	// 	for n := range b {
+	// 		if n%2 == 0 {
+	// 			line = append(line, fmt.Sprintf("%02x%02x", b[n], b[n+1]))
+	// 		}
+	// 	}
+	// 	hexdata = append(hexdata, strings.Join(line, " "))
+	// }
+
+	// return strings.Join(hexdata, "\n")
+
+	// t.File.Seek(0, 0)
+	var hexdata []string
+	var b = make([]byte, 16)
+	var err error
+	var n int
+	reader := bytes.NewReader(t.Data)
 	for err == nil {
-		var b byte
-		b, err = reader.ReadByte()
-		// fmt.Printf("%02x ", b)
-		hexdata += fmt.Sprintf("%02x ", b)
-		// fmt.Println(hexdata)
+		n, err = reader.Read(b)
+		b = b[:n]
+
+		hexdata = append(hexdata, fmt.Sprintf("% 02x", b))
 	}
-	// fmt.Println(string(hexdata))
-	return
+
+	return strings.Join(hexdata, "\n")
 }
 
 func (t *Tab) DetectLanguage() string {
@@ -436,7 +463,7 @@ func (t *Tab) Find(substr string) {
 	}
 
 	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
-	matches := reg.FindAllIndex(t.GetText(), -1)
+	matches := reg.FindAllIndex(t.GetText(), 1024)
 
 	for n, index := range matches {
 		var start gtk.TextIter
@@ -448,7 +475,7 @@ func (t *Tab) Find(substr string) {
 			t.sourceview.ScrollToIter(&start, 0, false, 0, 0)
 		}
 	}
-	fmt.Println(matches)
+	// fmt.Println(matches)
 }
 
 func closeCurrentTab() {
