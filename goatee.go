@@ -55,6 +55,8 @@ func init() {
 		filename = os.Args[1]
 	}
 
+	ReadConf()
+
 	user, _ := user.Current()
 
 	gvfsPath = fmt.Sprintf(gvfsPath, user.Uid)
@@ -88,6 +90,24 @@ func exit() {
 	gtk.MainQuit()
 }
 
+func CreateWindow() *gtk.Window {
+	window := gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
+	// window.SetDefaultSize(700, 300)
+	vbox := gtk.NewVBox(false, 0)
+	CreateMenu(window, vbox)
+	notebook = gtk.NewNotebook()
+	vbox.Add(notebook)
+	window.Add(vbox)
+
+	return window
+}
+
+func windowResize() {
+	window.GetSize(&width, &height)
+	notebook.SetSizeRequest(width, height)
+	homogenousTabs()
+}
+
 func tabsContains(filename string) bool {
 	for n, t := range tabs {
 		if t.Filename == filename {
@@ -98,24 +118,6 @@ func tabsContains(filename string) bool {
 	return false
 }
 
-func windowResize() {
-	window.GetSize(&width, &height)
-	notebook.SetSizeRequest(width, height)
-	homogenousTabs()
-}
-
-func CreateWindow() *gtk.Window {
-	window := gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
-	window.SetDefaultSize(700, 300)
-	vbox := gtk.NewVBox(false, 0)
-	CreateMenu(window, vbox)
-	notebook = gtk.NewNotebook()
-	vbox.Add(notebook)
-	window.Add(vbox)
-
-	return window
-}
-
 type Tab struct {
 	Filename string
 	File     *os.File
@@ -124,7 +126,7 @@ type Tab struct {
 	Language string
 	ReadOnly bool
 
-	color        *gdk.Color
+	//color        *gdk.Color
 	swin         *gtk.ScrolledWindow
 	label        *gtk.Label
 	sourcebuffer *gsv.SourceBuffer
@@ -175,13 +177,14 @@ func NewTab(filename string) {
 
 		t.Encoding, err = analyzer.FromBytes(t.Data, enca.NAME_STYLE_HUMAN)
 		analyzer.Free()
+
 		if err != nil {
 			t.Encoding = "binary"
 			t.Data = []byte(hex.Dump(t.Data))
 		} else {
 			t.Language = t.DetectLanguage()
 
-			if t.Encoding != "ASCII" && t.Encoding != "binary" {
+			if t.Encoding != "UTF-8" && t.Encoding != "ASCII" && t.Encoding != "binary" {
 				t.Data, err = changeEncoding(t.Data, "utf-8", t.Encoding)
 				if err != nil {
 					fmt.Println(err)
@@ -208,13 +211,15 @@ func NewTab(filename string) {
 	}
 
 	t.sourceview = gsv.NewSourceViewWithBuffer(t.sourcebuffer)
-	t.sourceview.SetHighlightCurrentLine(true)
-	t.sourceview.ModifyFontEasy("Liberation Mono 8")
+	t.sourceview.SetHighlightCurrentLine(conf.TextView.LineHightlight)
+	t.sourceview.ModifyFontEasy(conf.TextView.Font)
 	if t.Encoding != "binary" {
-		t.sourceview.SetShowLineNumbers(true)
-		t.sourceview.SetWrapMode(gtk.WRAP_WORD_CHAR)
-		t.sourceview.SetTabWidth(2)
-		t.sourceview.SetInsertSpacesInsteadOfTabs(false)
+		t.sourceview.SetShowLineNumbers(conf.TextView.LineNumbers)
+		if conf.TextView.WordWrap {
+			t.sourceview.SetWrapMode(gtk.WRAP_WORD_CHAR)
+		}
+		t.sourceview.SetTabWidth(uint(conf.TextView.IndentWidth))
+		t.sourceview.SetInsertSpacesInsteadOfTabs(conf.TextView.IndentSpace)
 	}
 
 	t.DragAndDrop()
@@ -232,16 +237,10 @@ func NewTab(filename string) {
 	t.label = gtk.NewLabel(path.Base(filename))
 	t.label.SetTooltipText(filename)
 
-	// t.label.RenderIcon("object-locked", gtk.GTK_ICON_SIZE_SMALL_TOOLBAR, "lock")
-	// if t.ReadOnly {
-	// 	t.labelColorReadOnly()
-	// }
-	// t.label.SetUSize(10000, 10)
-
 	if newfile {
-		t.updateTabColor(255, 200, 0)
+		t.SetTabFGColor(conf.Tabs.FGNew)
 	} else {
-		t.resetTabColor()
+		t.SetTabFGColor(conf.Tabs.FGNormal)
 	}
 
 	n := notebook.AppendPage(t.swin, t.label)
@@ -272,7 +271,7 @@ func (t *Tab) DetectLanguage() string {
 		return ""
 	}
 
-	ext := path.Ext(t.Filename)
+	ext := path.Ext(t.Filename)[1:]
 	if issetLanguage(ext) {
 		return ext
 	}
@@ -357,57 +356,16 @@ func (t *Tab) DragAndDrop() {
 
 func (t *Tab) onchange() {
 	t.Data = t.GetText()
-	t.updateTabColor(255, 0, 0)
+	t.SetTabFGColor(conf.Tabs.FGModified)
 }
 
-func (t *Tab) updateTabColor(r, g, b uint16) {
-	if t.ReadOnly {
-		r -= 50
-		g += 100
-		b += 100
-		// t.label.
-	}
-	r = uint16(math.Pow(float64(r), 2))
-	g = uint16(math.Pow(float64(g), 2))
-	b = uint16(math.Pow(float64(b), 2))
-
-	// fmt.Println(r, float64(r), math.Pow(float64(r), 2))
+func (t *Tab) SetTabFGColor(col [3]int) {
+	r := uint16(math.Pow(float64(col[0]), 2))
+	g := uint16(math.Pow(float64(col[1]), 2))
+	b := uint16(math.Pow(float64(col[2]), 2))
 
 	color := gdk.NewColorRGB(r, g, b)
 	t.label.ModifyFG(gtk.STATE_NORMAL, color)
-	// t.label.ModifyFG(gtk.STATE_INSENSITIVE, color)
-	t.label.ModifyFG(gtk.STATE_PRELIGHT, color)
-	t.label.ModifyFG(gtk.STATE_SELECTED, color)
-	t.label.ModifyFG(gtk.STATE_ACTIVE, color)
-	// t.label.ModifyBG(state, color)
-}
-
-// func (t *Tab) updateTabBGColor(r, g, b uint8) {
-// 	color := gdk.NewColorRGB(r, g, b)
-// }
-
-// func (t *Tab) labelColorReadOnly() {
-
-// 	color := gdk.NewColorRGB(0, 0, 255)
-// 	fmt.Println(color)
-// 	t.label.ModifyBG(gtk.STATE_NORMAL, color)
-// 	t.label.ModifyBG(gtk.STATE_PRELIGHT, color)
-// 	t.label.ModifyBG(gtk.STATE_SELECTED, color)
-// 	t.label.ModifyBG(gtk.STATE_ACTIVE, color)
-// 	t.label.ModifyBG(gtk.STATE_INSENSITIVE, color)
-// 	// t.label.ModifyBase(state, color)
-// 	t.label.ModifyBG(gtk.STATE_SELECTED, color)
-// }
-
-func (t *Tab) resetTabColor() {
-	var color *gdk.Color
-	if t.ReadOnly {
-		color = gdk.NewColorRGB(30400, 30400, 30400)
-	} else {
-		color = gdk.NewColorRGB(40000, 40000, 40000)
-	}
-	t.label.ModifyFG(gtk.STATE_NORMAL, color)
-	// t.label.ModifyFG(gtk.STATE_INSENSITIVE, color)
 	t.label.ModifyFG(gtk.STATE_PRELIGHT, color)
 	t.label.ModifyFG(gtk.STATE_SELECTED, color)
 	t.label.ModifyFG(gtk.STATE_ACTIVE, color)
@@ -445,7 +403,7 @@ func (t *Tab) Save() {
 		return
 	}
 	t.File.Truncate(int64(n))
-	t.resetTabColor()
+	t.SetTabFGColor(conf.Tabs.FGNormal)
 }
 
 func (t *Tab) GetText() []byte {
@@ -491,33 +449,6 @@ func (t *Tab) Find(substr string) {
 		}
 	}
 	fmt.Println(matches)
-
-	// var i int
-	// var offset int
-	// for {
-	// 	i++
-	// 	n := strings.Index(text, substr)
-	// 	if n == -1 {
-	// 		t.tagfind = nil
-	// 		break
-	// 	}
-
-	// 	var start gtk.TextIter
-	// 	var end gtk.TextIter
-	// 	t.sourcebuffer.GetIterAtOffset(&start, offset+n)
-	// 	t.sourcebuffer.GetIterAtOffset(&end, offset+n+len(substr))
-
-	// 	t.sourcebuffer.ApplyTag(t.tagfind, &start, &end)
-	// 	start.Free()
-	// 	end.Free()
-
-	// 	offset += n + len(substr)
-	// 	text = text[offset:]
-
-	// 	if i == 1 {
-	// 		t.sourceview.ScrollToIter(&start, 0, false, 0, 0)
-	// 	}
-	// }
 }
 
 func closeCurrentTab() {
@@ -536,13 +467,20 @@ func currentTab() *Tab {
 }
 
 func homogenousTabs() {
-	if len(tabs) == 0 {
+	if len(tabs) == 0 || !conf.Tabs.Homogenous {
 		return
 	}
 
-	tabwidth := (width - len(tabs)*5) / len(tabs)
+	tabwidth := (width - len(tabs)*6) / len(tabs)
+	leftwidth := (width - len(tabs)*6) % len(tabs)
+
 	for _, t := range tabs {
-		t.label.SetSizeRequest(tabwidth-1, 12)
+		if leftwidth > 0 {
+			t.label.SetSizeRequest(tabwidth+1, 12)
+			leftwidth--
+		} else {
+			t.label.SetSizeRequest(tabwidth, 12)
+		}
 	}
 
 }
