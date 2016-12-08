@@ -15,4 +15,3 @@
  
  * gtk2
  * gtksourceview2 
- * enca/libenca - *Charset analyser and converter*
