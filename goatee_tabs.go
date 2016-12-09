@@ -250,12 +250,19 @@ func (t *Tab) DetectLanguage() string {
 }
 
 func (t *Tab) DragAndDrop() {
-	t.sourceview.DragDestSet(gtk.DEST_DEFAULT_MOTION|gtk.DEST_DEFAULT_HIGHLIGHT|gtk.DEST_DEFAULT_DROP, targets, gdk.ACTION_COPY)
+	// dndtargets := []gtk.TargetEntry{
+	// 	{"text/uri-list", 0, 0},
+	// 	{"STRING", 0, 1},
+	// 	{"text/plain", 0, 2},
+	// }
+
+	// t.swin.DragDestSet(gtk.DEST_DEFAULT_HIGHLIGHT|gtk.DEST_DEFAULT_DROP|gtk.DEST_DEFAULT_MOTION, dndtargets, gdk.ACTION_COPY)
 	t.sourceview.DragDestAddUriTargets()
-	t.sourceview.Connect("drag-data-received", DnDHandler)
+	t.sourceview.Connect("drag-data-received", t.DnDHandler)
 }
 
-func DnDHandler(ctx *glib.CallbackContext) {
+func (t *Tab) DnDHandler(ctx *glib.CallbackContext) {
+
 	sdata := gtk.NewSelectionDataFromNative(unsafe.Pointer(ctx.Args(3)))
 	if sdata != nil {
 		a := (*[2048]uint8)(sdata.GetData())
@@ -269,7 +276,9 @@ func DnDHandler(ctx *glib.CallbackContext) {
 				continue
 			}
 
-			if u.Scheme == "file" {
+			if len(u.Scheme) == 0 {
+				return
+			} else if u.Scheme == "file" {
 				filename = u.Path
 			} else {
 				filename = path.Join(gvfsPath, fmt.Sprintf("%s:host=%s", u.Scheme, u.Host), u.Path)

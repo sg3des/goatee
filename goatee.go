@@ -9,7 +9,6 @@ import (
 	"github.com/mattn/go-gtk/gtk"
 	gsv "github.com/mattn/go-gtk/gtksourceview"
 
-	"github.com/endeveit/enca"
 	iconv "gopkg.in/iconv.v1"
 )
 
@@ -25,14 +24,6 @@ var (
 
 	newtabiter int
 	tabs       []*Tab
-
-	targets = []gtk.TargetEntry{
-		{"text/uri-list", 0, 0},
-		{"STRING", 0, 1},
-		{"text/plain", 0, 2},
-	}
-
-	analyzer *enca.EncaAnalyser
 
 	languages = gsv.SourceLanguageManagerGetDefault().GetLanguageIds()
 
@@ -62,11 +53,6 @@ func main() {
 	window.ShowAll()
 	menubar.SetVisible(false)
 	footer.SetVisible(false)
-
-	analyzer, err = enca.New("ru")
-	if err != nil {
-		log.Fatalln("failed load chaser analyzer", err)
-	}
 
 	NewTab(filename)
 
