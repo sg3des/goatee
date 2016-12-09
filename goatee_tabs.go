@@ -37,7 +37,8 @@ type Tab struct {
 	sourcebuffer *gsv.SourceBuffer
 	sourceview   *gsv.SourceView
 
-	tagfind *gtk.TextTag
+	tagfind        *gtk.TextTag
+	tagfindcurrent *gtk.TextTag
 }
 
 func NewTab(filename string) {
@@ -65,7 +66,7 @@ func NewTab(filename string) {
 			return
 		}
 
-		t.File, err = os.OpenFile(filename, os.O_RDWR, info.Mode())
+		t.File, err = os.OpenFile(filename, os.O_RDWR, 0644)
 		if err != nil {
 			t.ReadOnly = true
 			t.File, err = os.OpenFile(filename, os.O_RDONLY, info.Mode())
@@ -246,6 +247,12 @@ func (t *Tab) DetectLanguage() string {
 		return maybexml
 	}
 
+	// log.Println(strings.LastIndex(t.Filename, "rc"))
+
+	if strings.HasSuffix(t.Filename, "rc") {
+		return "sh"
+	}
+
 	return strings.ToLower(gsv.NewSourceLanguageManager().GuessLanguage(t.Filename, "").GetName())
 }
 
@@ -359,71 +366,88 @@ func (t *Tab) Find(substr string) {
 	if t.tagfind != nil {
 		tabletag := t.sourcebuffer.GetTagTable()
 		tabletag.Remove(t.tagfind)
+		tabletag.Remove(t.tagfindcurrent)
 	}
 
-	if len(substr) == 0 {
+	lensubstr := len([]rune(substr))
+	if lensubstr == 0 {
 		t.tagfind = nil
+		t.tagfindcurrent = nil
 		return
 	}
 
 	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
+	t.tagfindcurrent = t.sourcebuffer.CreateTag("findCurr", map[string]string{"background": "#aa9911"})
 
-	regexp.MustCompile("").ReplaceAllString(substr, "")
-	//
-	// search with regexp
-	reg, err := regexp.Compile("(?im)" + substr)
-	if err != nil {
-		t.tagfind = nil
-		log.Println("invalid regexp query", err)
-		return
-	}
+	if btnReg.GetActive() {
 
-	lensubstr := len([]rune(ClearMeta(substr)))
-	if lensubstr == 0 {
-		return
-	}
-	// log.Println(ClearMeta(substr))
+		regexp.MustCompile("").ReplaceAllString(substr, "")
+		//
+		// search with regexp
+		reg, err := regexp.Compile("(?im)" + substr)
+		if err != nil {
+			t.tagfind = nil
+			log.Println("invalid regexp query", err)
+			return
+		}
 
-	data := t.GetText()
-	matches := reg.FindAllIndex(data, conf.Search.MaxItems)
-	for n, index := range matches {
-		i := utf8.RuneCount(data[:index[0]])
-		size := utf8.RuneCount(data[index[0]:index[1]])
-		t.Highlight(i, size)
-		if n == 0 {
-			t.Scroll(i)
+		data := t.GetText()
+		matches := reg.FindAllIndex(data, conf.Search.MaxItems)
+		for n, index := range matches {
+			i := utf8.RuneCount(data[:index[0]])
+			size := utf8.RuneCount(data[index[0]:index[1]])
+
+			if n == 0 {
+				t.Highlight(i, size, true)
+			} else {
+				t.Highlight(i, size, false)
+			}
+		}
+	} else {
+		// //
+		// search plane text
+		runeText := []rune(string(t.GetText()))
+
+		var c int
+		for i := 0; i < len(runeText); i++ {
+			if i+lensubstr > len(runeText) {
+				continue
+			}
+			if string(runeText[i:i+lensubstr]) == substr {
+
+				if c == 0 {
+					t.Highlight(i, lensubstr, true)
+				} else {
+					t.Highlight(i, lensubstr, false)
+				}
+				c++
+				if c > conf.Search.MaxItems {
+					break
+				}
+			}
 		}
 	}
 
-	// //
-	// // search plane text
-	// runeText := []rune(string(t.GetText()))
-
-	// var c int
-	// for i := 0; i < len(runeText); i++ {
-	// 	if string(runeText[i:i+lensubstr]) == substr {
-	// 		t.Highlight(i, lensubstr)
-	// 		if c == 0 {
-	// 			t.Scroll(i)
-	// 		}
-	// 		c++
-	// 		if c > conf.Search.MaxItems {
-	// 			break
-	// 		}
-	// 	}
-	// }
 }
 
-func (t *Tab) Highlight(index, size int) {
+func (t *Tab) FindNext(next bool) {
+	log.Println("findNext", next)
+
+}
+
+func (t *Tab) Highlight(index, size int, current bool) {
 	var start gtk.TextIter
 	var end gtk.TextIter
 	t.sourcebuffer.GetIterAtOffset(&start, index)
 	t.sourcebuffer.GetIterAtOffset(&end, index+size)
-	t.sourcebuffer.ApplyTag(t.tagfind, &start, &end)
+	if current {
+		t.sourcebuffer.ApplyTag(t.tagfindcurrent, &start, &end)
+		t.Scroll(start)
+	} else {
+		t.sourcebuffer.ApplyTag(t.tagfind, &start, &end)
+	}
 }
 
-func (t *Tab) Scroll(index int) {
-	var start gtk.TextIter
-	t.sourcebuffer.GetIterAtOffset(&start, index)
-	t.sourceview.ScrollToIter(&start, 0, false, 0, 0)
+func (t *Tab) Scroll(iter gtk.TextIter) {
+	t.sourceview.ScrollToIter(&iter, 0, false, 0, 0)
 }

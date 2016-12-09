@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
 )
@@ -12,6 +13,7 @@ var (
 	menubar *gtk.Widget
 	footer  *gtk.HBox
 	findbar *gtk.Entry
+	btnReg  *gtk.ToggleButton
 )
 
 func CreateMenu(w *gtk.Window, vbox *gtk.VBox) {
@@ -28,18 +30,57 @@ func CreateMenu(w *gtk.Window, vbox *gtk.VBox) {
 
 	vbox.PackStart(menubar, false, false, 0)
 
+	vbox.PackEnd(CreateFooter(), false, false, 0)
+}
+
+func CreateFooter() *gtk.HBox {
 	footer = gtk.NewHBox(false, 0)
+
+	btnReg = gtk.NewToggleButton()
+	labelReg := gtk.NewLabel("Re")
+	btnReg.Add(labelReg)
+	labelReg.ModifyFG(gtk.STATE_ACTIVE, gdk.NewColor("red"))
+	btnReg.Connect("toggled", OnFindInput)
+	footer.PackStart(btnReg, false, true, 1)
+
+	// btnReg.SetBorderWidth(4)
+
 	ebuff := gtk.NewEntryBuffer("")
 	findbar = gtk.NewEntryWithBuffer(ebuff)
 	findbar.Connect("changed", OnFindInput)
 	footer.PackStart(findbar, true, true, 1)
 
-	vbox.PackEnd(footer, false, false, 0)
+	btnNext := gtk.NewButton()
+	btnNext.SetSizeRequest(20, 20)
+	btnNext.Add(gtk.NewArrow(gtk.ARROW_DOWN, gtk.SHADOW_NONE))
+	btnNext.Clicked(OnFindNext)
+	footer.PackStart(btnNext, false, true, 1)
+
+	btnPrev := gtk.NewButton()
+	btnPrev.SetSizeRequest(20, 20)
+	btnPrev.Add(gtk.NewArrow(gtk.ARROW_UP, gtk.SHADOW_NONE))
+	btnPrev.Clicked(OnFindPrev)
+	footer.PackStart(btnPrev, false, true, 1)
+
+	btnClose := gtk.NewButton()
+	btnClose.SetSizeRequest(20, 20)
+	btnClose.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
+	btnClose.Clicked(OnMenuFind)
+	footer.PackStart(btnClose, false, true, 1)
+
+	return footer
 }
 
 func OnFindInput() {
-	t := currentTab()
-	t.Find(findbar.GetText())
+	currentTab().Find(findbar.GetText())
+}
+
+func OnFindNext() {
+	currentTab().FindNext(true)
+}
+
+func OnFindPrev() {
+	currentTab().FindNext(false)
 }
 
 func CreateUIManager() *gtk.UIManager {
