@@ -98,6 +98,8 @@ func CreateUIManager() *gtk.UIManager {
     </menu>
     <menu action='EditMenu'>
       <menuitem action='Find'/>
+      <menuitem action='FindNext'/>
+      <menuitem action='FindPrev'/>
     </menu>
     <menu action='ChoicesMenu'>
       <menuitem action='ChoiceOne'/>
@@ -230,6 +232,14 @@ func AddEditMenuActions(action_group *gtk.ActionGroup) {
 	action_find := gtk.NewAction("Find", "Find...", "", gtk.STOCK_FIND)
 	action_find.Connect("activate", OnMenuFind)
 	action_group.AddActionWithAccel(action_find, "")
+
+	action_findnext := gtk.NewAction("FindNext", "Find Next", "", "")
+	action_findnext.Connect("activate", OnFindNext)
+	action_group.AddActionWithAccel(action_findnext, "F3")
+
+	action_findprev := gtk.NewAction("FindPrev", "Find Previus", "", "")
+	action_findprev.Connect("activate", OnFindPrev)
+	action_group.AddActionWithAccel(action_findprev, "<shift>F3")
 }
 
 func AddChoicesMenuActions(action_group *gtk.ActionGroup) {
