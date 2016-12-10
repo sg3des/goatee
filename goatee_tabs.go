@@ -37,8 +37,10 @@ type Tab struct {
 	sourcebuffer *gsv.SourceBuffer
 	sourceview   *gsv.SourceView
 
-	tagfind        *gtk.TextTag
-	tagfindcurrent *gtk.TextTag
+	findindex        [][]int
+	findindexCurrent int
+	tagfind          *gtk.TextTag
+	tagfindCurrent   *gtk.TextTag
 }
 
 func NewTab(filename string) {
@@ -59,17 +61,17 @@ func NewTab(filename string) {
 	t.Filename = filename
 
 	if !newfile {
-		// t.File, err = os.Open(filename)
-		info, err := os.Lstat(filename)
-		if err != nil {
-			log.Println("failed get stat of file", filename, err)
-			return
-		}
+		// // t.File, err = os.Open(filename)
+		// info, err := os.Lstat(filename)
+		// if err != nil {
+		// 	log.Println("failed get stat of file", filename, err)
+		// 	return
+		// }
 
 		t.File, err = os.OpenFile(filename, os.O_RDWR, 0644)
 		if err != nil {
 			t.ReadOnly = true
-			t.File, err = os.OpenFile(filename, os.O_RDONLY, info.Mode())
+			t.File, err = os.OpenFile(filename, os.O_RDONLY, 0644)
 
 			if err != nil {
 				log.Println("failed open file", filename, err)
@@ -297,7 +299,7 @@ func (t *Tab) DnDHandler(ctx *glib.CallbackContext) {
 }
 
 func (t *Tab) onchange() {
-	t.Data = t.GetText()
+	// t.Data = t.GetText()
 	t.SetTabFGColor(conf.Tabs.FGModified)
 }
 
@@ -366,22 +368,23 @@ func (t *Tab) Find(substr string) {
 	if t.tagfind != nil {
 		tabletag := t.sourcebuffer.GetTagTable()
 		tabletag.Remove(t.tagfind)
-		tabletag.Remove(t.tagfindcurrent)
+		tabletag.Remove(t.tagfindCurrent)
 	}
 
 	lensubstr := len([]rune(substr))
 	if lensubstr == 0 {
 		t.tagfind = nil
-		t.tagfindcurrent = nil
+		t.tagfindCurrent = nil
 		return
 	}
 
+	t.findindex = [][]int{}
+
 	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
-	t.tagfindcurrent = t.sourcebuffer.CreateTag("findCurr", map[string]string{"background": "#aa9911"})
+	t.tagfindCurrent = t.sourcebuffer.CreateTag("findCurr", map[string]string{"background": "#eeaa00"})
 
+	log.Println(btnReg.GetActive())
 	if btnReg.GetActive() {
-
-		regexp.MustCompile("").ReplaceAllString(substr, "")
 		//
 		// search with regexp
 		reg, err := regexp.Compile("(?im)" + substr)
@@ -392,15 +395,18 @@ func (t *Tab) Find(substr string) {
 		}
 
 		data := t.GetText()
-		matches := reg.FindAllIndex(data, conf.Search.MaxItems)
-		for n, index := range matches {
-			i := utf8.RuneCount(data[:index[0]])
+		t.findindex = reg.FindAllIndex(data, conf.Search.MaxItems)
+		log.Println(t.findindex)
+		for n, index := range t.findindex {
+			offset := utf8.RuneCount(data[:index[0]])
 			size := utf8.RuneCount(data[index[0]:index[1]])
+			index := []int{offset, offset + size}
 
 			if n == 0 {
-				t.Highlight(i, size, true)
+				t.Highlight(index, true)
+				t.findindexCurrent = n
 			} else {
-				t.Highlight(i, size, false)
+				t.Highlight(index, false)
 			}
 		}
 	} else {
@@ -408,20 +414,24 @@ func (t *Tab) Find(substr string) {
 		// search plane text
 		runeText := []rune(string(t.GetText()))
 
-		var c int
+		var n int
 		for i := 0; i < len(runeText); i++ {
 			if i+lensubstr > len(runeText) {
 				continue
 			}
 			if string(runeText[i:i+lensubstr]) == substr {
+				index := []int{i, i + lensubstr}
+				t.findindex = append(t.findindex, index)
 
-				if c == 0 {
-					t.Highlight(i, lensubstr, true)
+				if n == 0 {
+					t.Highlight(index, true)
+					t.findindexCurrent = n
 				} else {
-					t.Highlight(i, lensubstr, false)
+					t.Highlight(index, false)
 				}
-				c++
-				if c > conf.Search.MaxItems {
+
+				n++
+				if n > conf.Search.MaxItems {
 					break
 				}
 			}
@@ -431,19 +441,40 @@ func (t *Tab) Find(substr string) {
 }
 
 func (t *Tab) FindNext(next bool) {
-	log.Println("findNext", next)
+	if len(t.findindex) < 2 {
+		return
+	}
 
+	t.Highlight(t.findindex[t.findindexCurrent], false)
+
+	if next {
+		t.findindexCurrent++
+	} else {
+		t.findindexCurrent--
+	}
+
+	if t.findindexCurrent >= len(t.findindex) {
+		t.findindexCurrent = 0
+	}
+	if t.findindexCurrent < 0 {
+		t.findindexCurrent = len(t.findindex) - 1
+	}
+
+	t.Highlight(t.findindex[t.findindexCurrent], true)
 }
 
-func (t *Tab) Highlight(index, size int, current bool) {
+func (t *Tab) Highlight(index []int, current bool) {
 	var start gtk.TextIter
 	var end gtk.TextIter
-	t.sourcebuffer.GetIterAtOffset(&start, index)
-	t.sourcebuffer.GetIterAtOffset(&end, index+size)
+	t.sourcebuffer.GetIterAtOffset(&start, index[0])
+	t.sourcebuffer.GetIterAtOffset(&end, index[1])
+
 	if current {
-		t.sourcebuffer.ApplyTag(t.tagfindcurrent, &start, &end)
+		t.sourcebuffer.RemoveTag(t.tagfind, &start, &end)
+		t.sourcebuffer.ApplyTag(t.tagfindCurrent, &start, &end)
 		t.Scroll(start)
 	} else {
+		t.sourcebuffer.RemoveTag(t.tagfindCurrent, &start, &end)
 		t.sourcebuffer.ApplyTag(t.tagfind, &start, &end)
 	}
 }
