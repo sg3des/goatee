@@ -31,6 +31,12 @@ func CreateMenu(w *gtk.Window, vbox *gtk.VBox) {
 	vbox.PackStart(menubar, false, false, 0)
 
 	vbox.PackEnd(CreateFooter(), false, false, 0)
+	// footer2 := gtk.NewHBox(false, 0)
+	// replacebar := gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
+	// footer2.PackStart(replacebar, true, true, 1)
+
+	// vbox.PackEnd(footer2, false, false, 0)
+
 }
 
 func CreateFooter() *gtk.HBox {
@@ -42,8 +48,6 @@ func CreateFooter() *gtk.HBox {
 	labelReg.ModifyFG(gtk.STATE_ACTIVE, gdk.NewColor("red"))
 	btnReg.Connect("toggled", OnFindInput)
 	footer.PackStart(btnReg, false, true, 1)
-
-	// btnReg.SetBorderWidth(4)
 
 	ebuff := gtk.NewEntryBuffer("")
 	findbar = gtk.NewEntryWithBuffer(ebuff)

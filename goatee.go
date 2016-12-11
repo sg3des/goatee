@@ -69,7 +69,7 @@ func exit() {
 
 func CreateWindow() *gtk.Window {
 	window := gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
-	// window.SetDefaultSize(700, 300)
+	window.SetDefaultSize(700, 300)
 	vbox := gtk.NewVBox(false, 0)
 	CreateMenu(window, vbox)
 	notebook = gtk.NewNotebook()

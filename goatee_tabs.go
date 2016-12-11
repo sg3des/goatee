@@ -383,7 +383,6 @@ func (t *Tab) Find(substr string) {
 	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
 	t.tagfindCurrent = t.sourcebuffer.CreateTag("findCurr", map[string]string{"background": "#eeaa00"})
 
-	log.Println(btnReg.GetActive())
 	if btnReg.GetActive() {
 		//
 		// search with regexp
@@ -396,7 +395,6 @@ func (t *Tab) Find(substr string) {
 
 		data := t.GetText()
 		t.findindex = reg.FindAllIndex(data, conf.Search.MaxItems)
-		log.Println(t.findindex)
 		for n, index := range t.findindex {
 			offset := utf8.RuneCount(data[:index[0]])
 			size := utf8.RuneCount(data[index[0]:index[1]])
