@@ -11,8 +11,13 @@ import (
 
 var (
 	menubar *gtk.Widget
-	footer  *gtk.HBox
+
+	footer     *gtk.Table
+	footerFind *gtk.HBox
+	footerRepl *gtk.HBox
+
 	findbar *gtk.Entry
+	replbar *gtk.Entry
 	btnReg  *gtk.ToggleButton
 )
 
@@ -31,46 +36,59 @@ func CreateMenu(w *gtk.Window, vbox *gtk.VBox) {
 	vbox.PackStart(menubar, false, false, 0)
 
 	vbox.PackEnd(CreateFooter(), false, false, 0)
-	// footer2 := gtk.NewHBox(false, 0)
-	// replacebar := gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
-	// footer2.PackStart(replacebar, true, true, 1)
-
-	// vbox.PackEnd(footer2, false, false, 0)
-
 }
 
-func CreateFooter() *gtk.HBox {
-	footer = gtk.NewHBox(false, 0)
+func CreateFooter() *gtk.Table {
+	footer = gtk.NewTable(2, 5, false)
 
-	btnReg = gtk.NewToggleButton()
+	// findbar
 	labelReg := gtk.NewLabel("Re")
-	btnReg.Add(labelReg)
 	labelReg.ModifyFG(gtk.STATE_ACTIVE, gdk.NewColor("red"))
+	btnReg = gtk.NewToggleButton()
+	btnReg.Add(labelReg)
 	btnReg.Connect("toggled", OnFindInput)
-	footer.PackStart(btnReg, false, true, 1)
 
-	ebuff := gtk.NewEntryBuffer("")
-	findbar = gtk.NewEntryWithBuffer(ebuff)
+	findbar = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
 	findbar.Connect("changed", OnFindInput)
-	footer.PackStart(findbar, true, true, 1)
 
 	btnNext := gtk.NewButton()
 	btnNext.SetSizeRequest(20, 20)
 	btnNext.Add(gtk.NewArrow(gtk.ARROW_DOWN, gtk.SHADOW_NONE))
 	btnNext.Clicked(OnFindNext)
-	footer.PackStart(btnNext, false, true, 1)
 
 	btnPrev := gtk.NewButton()
 	btnPrev.SetSizeRequest(20, 20)
 	btnPrev.Add(gtk.NewArrow(gtk.ARROW_UP, gtk.SHADOW_NONE))
 	btnPrev.Clicked(OnFindPrev)
-	footer.PackStart(btnPrev, false, true, 1)
 
 	btnClose := gtk.NewButton()
 	btnClose.SetSizeRequest(20, 20)
 	btnClose.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
 	btnClose.Clicked(OnMenuFind)
-	footer.PackStart(btnClose, false, true, 1)
+
+	// replacebar
+	replbar = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
+	replbar.Connect("changed", OnFindInput)
+
+	btnRepl := gtk.NewButton()
+	btnRepl.SetSizeRequest(20, 20)
+	btnRepl.Add(gtk.NewImageFromIconName("text-changelog", gtk.ICON_SIZE_BUTTON))
+
+	btnReplAll := gtk.NewButton()
+	btnReplAll.SetSizeRequest(20, 20)
+	btnReplAll.Add(gtk.NewImageFromIconName("text-plain", gtk.ICON_SIZE_BUTTON))
+	// btnRepl.Clicked(OnMenuFind)
+
+	// pack to table
+	footer.Attach(btnReg, 0, 1, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(findbar, 1, 2, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(btnNext, 2, 3, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(btnPrev, 3, 4, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(btnClose, 4, 5, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+
+	footer.Attach(replbar, 1, 2, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(btnRepl, 2, 3, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(btnReplAll, 3, 4, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
 
 	return footer
 }
@@ -104,6 +122,8 @@ func CreateUIManager() *gtk.UIManager {
       <menuitem action='Find'/>
       <menuitem action='FindNext'/>
       <menuitem action='FindPrev'/>
+      <separator />
+      <menuitem action='Replace'/>
     </menu>
     <menu action='ChoicesMenu'>
       <menuitem action='ChoiceOne'/>
@@ -193,13 +213,17 @@ func OnMenuCloseTab() {
 }
 
 func OnMenuFind() {
-	if footer.GetVisible() {
-		footer.SetVisible(false)
-		currentTab().sourceview.GrabFocus()
-	} else {
-		footer.SetVisible(true)
-		findbar.GrabFocus()
-	}
+	footer.SetVisible(true)
+	// footerRepl.SetVisible(true)
+	findbar.GrabFocus()
+
+	// if footer.GetVisible() {
+	// 	footer.SetVisible(false)
+	// 	currentTab().sourceview.GrabFocus()
+	// } else {
+	// 	footer.SetVisible(true)
+	// 	findbar.GrabFocus()
+	// }
 }
 
 func AddFileMenuActions(action_group *gtk.ActionGroup) {
@@ -244,6 +268,10 @@ func AddEditMenuActions(action_group *gtk.ActionGroup) {
 	action_findprev := gtk.NewAction("FindPrev", "Find Previus", "", "")
 	action_findprev.Connect("activate", OnFindPrev)
 	action_group.AddActionWithAccel(action_findprev, "<shift>F3")
+
+	action_repl := gtk.NewAction("Replace", "Replace...", "", gtk.STOCK_FIND_AND_REPLACE)
+	action_repl.Connect("activate", OnMenuFind)
+	action_group.AddActionWithAccel(action_repl, "<control>h")
 }
 
 func AddChoicesMenuActions(action_group *gtk.ActionGroup) {

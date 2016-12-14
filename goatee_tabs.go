@@ -46,7 +46,6 @@ type Tab struct {
 func NewTab(filename string) {
 	var newfile bool
 
-	// log.Println(filename)
 	if tabsContains(filename) {
 		return
 	}
@@ -61,23 +60,12 @@ func NewTab(filename string) {
 	t.Filename = filename
 
 	if !newfile {
-		// // t.File, err = os.Open(filename)
-		// info, err := os.Lstat(filename)
-		// if err != nil {
-		// 	log.Println("failed get stat of file", filename, err)
-		// 	return
-		// }
-
-		t.File, err = os.OpenFile(filename, os.O_RDWR, 0644)
+		t.File, err = os.Open(filename)
 		if err != nil {
-			t.ReadOnly = true
-			t.File, err = os.OpenFile(filename, os.O_RDONLY, 0644)
-
-			if err != nil {
-				log.Println("failed open file", filename, err)
-				return
-			}
+			log.Println("failed open file", filename, err)
+			return
 		}
+		defer t.File.Close()
 
 		t.Data, err = ioutil.ReadAll(t.File)
 		if err != nil {
@@ -316,8 +304,6 @@ func (t *Tab) SetTabFGColor(col [3]int) {
 }
 
 func (t *Tab) Save() {
-	log.Println("SAVE")
-
 	var text []byte
 	if t.Encoding == "binary" {
 		log.Println("sorry, binary data save not yet done")
@@ -334,24 +320,12 @@ func (t *Tab) Save() {
 		}
 	}
 
-	// log.Println(string(text), t.Encoding)
-
-	if t.File == nil {
-		var err error
-		t.File, err = os.OpenFile(t.Filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-	}
-
-	t.File.Seek(0, 0)
-	n, err := t.File.Write(text)
+	err := ioutil.WriteFile(t.Filename, text, 0644)
 	if err != nil {
-		log.Println("failed write data", err)
+		log.Println(err)
 		return
 	}
-	t.File.Truncate(int64(n))
+
 	t.SetTabFGColor(conf.Tabs.FGNormal)
 }
 

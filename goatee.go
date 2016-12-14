@@ -52,7 +52,7 @@ func main() {
 
 	window.ShowAll()
 	menubar.SetVisible(false)
-	footer.SetVisible(false)
+	// footer.SetVisible(false)
 
 	NewTab(filename)
 
