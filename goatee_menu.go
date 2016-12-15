@@ -19,6 +19,7 @@ var (
 	findbar *gtk.Entry
 	replbar *gtk.Entry
 	btnReg  *gtk.ToggleButton
+	btnCase *gtk.ToggleButton
 )
 
 func CreateMenu(w *gtk.Window, vbox *gtk.VBox) {
@@ -39,7 +40,7 @@ func CreateMenu(w *gtk.Window, vbox *gtk.VBox) {
 }
 
 func CreateFooter() *gtk.Table {
-	footer = gtk.NewTable(2, 5, false)
+	footer = gtk.NewTable(2, 6, false)
 
 	// findbar
 	labelReg := gtk.NewLabel("Re")
@@ -47,6 +48,13 @@ func CreateFooter() *gtk.Table {
 	btnReg = gtk.NewToggleButton()
 	btnReg.Add(labelReg)
 	btnReg.Connect("toggled", OnFindInput)
+
+	labelCase := gtk.NewLabel("A")
+	labelCase.ModifyFG(gtk.STATE_ACTIVE, gdk.NewColor("red"))
+	btnCase = gtk.NewToggleButton()
+	btnCase.Add(labelCase)
+	btnCase.SetSizeRequest(20, 20)
+	btnCase.Connect("toggled", OnFindInput)
 
 	findbar = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
 	findbar.Connect("changed", OnFindInput)
@@ -81,14 +89,15 @@ func CreateFooter() *gtk.Table {
 
 	// pack to table
 	footer.Attach(btnReg, 0, 1, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
-	footer.Attach(findbar, 1, 2, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
-	footer.Attach(btnNext, 2, 3, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
-	footer.Attach(btnPrev, 3, 4, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
-	footer.Attach(btnClose, 4, 5, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(btnCase, 1, 2, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(findbar, 2, 3, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(btnNext, 3, 4, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(btnPrev, 4, 5, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(btnClose, 5, 6, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
 
-	footer.Attach(replbar, 1, 2, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
-	footer.Attach(btnRepl, 2, 3, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
-	footer.Attach(btnReplAll, 3, 4, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(replbar, 2, 3, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(btnRepl, 3, 4, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
+	footer.Attach(btnReplAll, 4, 5, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
 
 	return footer
 }

@@ -360,7 +360,15 @@ func (t *Tab) Find(substr string) {
 	if btnReg.GetActive() {
 		//
 		// search with regexp
-		reg, err := regexp.Compile("(?im)" + substr)
+
+		//case insensitive
+		var i string
+		if btnCase.GetActive() {
+			i = "i"
+		}
+
+		//create regexp expresion
+		reg, err := regexp.Compile("(?" + i + "m)" + substr)
 		if err != nil {
 			t.tagfind = nil
 			log.Println("invalid regexp query", err)
@@ -384,7 +392,14 @@ func (t *Tab) Find(substr string) {
 	} else {
 		// //
 		// search plane text
-		runeText := []rune(string(t.GetText()))
+		var runeText []rune
+
+		if btnCase.GetActive() {
+			runeText = []rune(strings.ToLower(string(t.GetText())))
+			substr = strings.ToLower(substr)
+		} else {
+			runeText = []rune(string(t.GetText()))
+		}
 
 		var n int
 		for i := 0; i < len(runeText); i++ {
