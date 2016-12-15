@@ -18,16 +18,16 @@ var (
 	width  int
 	height int
 
-	window   *gtk.Window
-	notebook *gtk.Notebook
+	ui *UI
+
+	// window   *gtk.Window
+	// notebook *gtk.Notebook
 	filename string
 
 	newtabiter int
 	tabs       []*Tab
 
 	languages = gsv.SourceLanguageManagerGetDefault().GetLanguageIds()
-
-	err error
 )
 
 func init() {
@@ -46,49 +46,17 @@ func init() {
 
 func main() {
 	gtk.Init(nil)
-	window = CreateWindow()
-	window.Connect("destroy", exit)
-	window.Connect("check-resize", windowResize)
-
-	window.ShowAll()
-	menubar.SetVisible(false)
-	// footer.SetVisible(false)
+	ui = CreateUI()
 
 	NewTab(filename)
 
 	gtk.Main()
 }
 
-func exit() {
-	for _, t := range tabs {
-		t.File.Close()
-	}
-
-	gtk.MainQuit()
-}
-
-func CreateWindow() *gtk.Window {
-	window := gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
-	window.SetDefaultSize(700, 300)
-	vbox := gtk.NewVBox(false, 0)
-	CreateMenu(window, vbox)
-	notebook = gtk.NewNotebook()
-	vbox.Add(notebook)
-	window.Add(vbox)
-
-	return window
-}
-
-func windowResize() {
-	window.GetSize(&width, &height)
-	notebook.SetSizeRequest(width, height)
-	homogenousTabs()
-}
-
 func tabsContains(filename string) bool {
 	for n, t := range tabs {
 		if t.Filename == filename {
-			notebook.SetCurrentPage(n)
+			ui.notebook.SetCurrentPage(n)
 			return true
 		}
 	}
@@ -96,8 +64,8 @@ func tabsContains(filename string) bool {
 }
 
 func issetLanguage(lang string) bool {
-	for _, langId := range languages {
-		if langId == lang {
+	for _, langID := range languages {
+		if langID == lang {
 			return true
 		}
 	}
@@ -120,35 +88,16 @@ func changeEncoding(data []byte, to, from string) ([]byte, error) {
 }
 
 func closeCurrentTab() {
-	n := notebook.GetCurrentPage()
-	notebook.RemovePage(tabs[n].swin, n)
+	n := ui.notebook.GetCurrentPage()
+	ui.notebook.RemovePage(tabs[n].swin, n)
 	tabs[n].File.Close()
 	tabs = append(tabs[:n], tabs[n+1:]...)
 }
 
 func currentTab() *Tab {
-	n := notebook.GetCurrentPage()
+	n := ui.notebook.GetCurrentPage()
 	if n < 0 {
 		return nil
 	}
 	return tabs[n]
-}
-
-func homogenousTabs() {
-	if len(tabs) == 0 || !conf.Tabs.Homogenous {
-		return
-	}
-
-	tabwidth := (width - len(tabs)*6) / len(tabs)
-	leftwidth := (width - len(tabs)*6) % len(tabs)
-
-	for _, t := range tabs {
-		if leftwidth > 0 {
-			t.label.SetSizeRequest(tabwidth+1, 12)
-			leftwidth--
-		} else {
-			t.label.SetSizeRequest(tabwidth, 12)
-		}
-	}
-
 }

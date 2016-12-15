@@ -45,6 +45,7 @@ type Tab struct {
 
 func NewTab(filename string) {
 	var newfile bool
+	var err error
 
 	if tabsContains(filename) {
 		return
@@ -142,9 +143,9 @@ func NewTab(filename string) {
 		t.SetTabFGColor(conf.Tabs.FGNormal)
 	}
 
-	n := notebook.AppendPage(t.swin, t.label)
-	notebook.ShowAll()
-	notebook.SetCurrentPage(n)
+	n := ui.notebook.AppendPage(t.swin, t.label)
+	ui.notebook.ShowAll()
+	ui.notebook.SetCurrentPage(n)
 	t.sourceview.GrabFocus()
 
 	tabs = append(tabs, t)
@@ -304,6 +305,7 @@ func (t *Tab) SetTabFGColor(col [3]int) {
 }
 
 func (t *Tab) Save() {
+	var err error
 	var text []byte
 	if t.Encoding == "binary" {
 		log.Println("sorry, binary data save not yet done")
@@ -311,31 +313,30 @@ func (t *Tab) Save() {
 		log.Println("sorry, file is open readonly mode")
 		return
 	} else if t.Encoding == "ASCII" || t.Encoding == "UTF-8" {
-		text = t.GetText()
+		text = []byte(t.GetText())
 	} else {
-		text, err = changeEncoding(t.GetText(), t.Encoding, "utf-8")
+		text, err = changeEncoding([]byte(t.GetText()), t.Encoding, "utf-8")
 		if err != nil {
 			log.Println("failed restore encoding, save failed,", err)
 			return
 		}
 	}
 
-	err := ioutil.WriteFile(t.Filename, text, 0644)
-	if err != nil {
-		log.Println(err)
+	if err := ioutil.WriteFile(t.Filename, text, 0644); err != nil {
+		log.Println("failed save file,", err)
 		return
 	}
 
 	t.SetTabFGColor(conf.Tabs.FGNormal)
 }
 
-func (t *Tab) GetText() []byte {
+func (t *Tab) GetText() string {
 	var start gtk.TextIter
 	var end gtk.TextIter
 
 	t.sourcebuffer.GetStartIter(&start)
 	t.sourcebuffer.GetEndIter(&end)
-	return []byte(t.sourcebuffer.GetText(&start, &end, true))
+	return t.sourcebuffer.GetText(&start, &end, true)
 }
 
 func (t *Tab) Find(substr string) {
@@ -352,79 +353,103 @@ func (t *Tab) Find(substr string) {
 		return
 	}
 
+	text := t.GetText()
+
 	t.findindex = [][]int{}
 
 	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
 	t.tagfindCurrent = t.sourcebuffer.CreateTag("findCurr", map[string]string{"background": "#eeaa00"})
 
-	if btnReg.GetActive() {
-		//
-		// search with regexp
+	if ui.footer.caseBtn.GetActive() {
+		substr = strings.ToLower(substr)
+	}
 
-		//case insensitive
-		var i string
-		if btnCase.GetActive() {
-			i = "i"
-		}
+	if !ui.footer.regBtn.GetActive() {
+		substr = regexp.QuoteMeta(substr)
+	}
 
-		//create regexp expresion
-		reg, err := regexp.Compile("(?" + i + "m)" + substr)
-		if err != nil {
-			t.tagfind = nil
-			log.Println("invalid regexp query", err)
-			return
-		}
+	reg, err := regexp.Compile("(?m)" + substr)
+	if err != nil {
+		log.Println("invalid regexp query", err)
+		return
+	}
 
-		data := t.GetText()
-		t.findindex = reg.FindAllIndex(data, conf.Search.MaxItems)
-		for n, index := range t.findindex {
-			offset := utf8.RuneCount(data[:index[0]])
-			size := utf8.RuneCount(data[index[0]:index[1]])
-			index := []int{offset, offset + size}
+	t.findindex = reg.FindAllIndex([]byte(text), -1)
+	// t.findindex = reg.FindAllStringIndex(text, -1)
 
-			if n == 0 {
-				t.Highlight(index, true)
-				t.findindexCurrent = n
-			} else {
-				t.Highlight(index, false)
-			}
-		}
-	} else {
-		// //
-		// search plane text
-		var runeText []rune
-
-		if btnCase.GetActive() {
-			runeText = []rune(strings.ToLower(string(t.GetText())))
-			substr = strings.ToLower(substr)
+	data := []byte(text)
+	for i, index := range t.findindex {
+		index[0] = utf8.RuneCount(data[:index[0]])
+		index[1] = utf8.RuneCount(data[:index[1]])
+		if i == 0 {
+			t.Highlight(index, true)
 		} else {
-			runeText = []rune(string(t.GetText()))
-		}
-
-		var n int
-		for i := 0; i < len(runeText); i++ {
-			if i+lensubstr > len(runeText) {
-				continue
-			}
-			if string(runeText[i:i+lensubstr]) == substr {
-				index := []int{i, i + lensubstr}
-				t.findindex = append(t.findindex, index)
-
-				if n == 0 {
-					t.Highlight(index, true)
-					t.findindexCurrent = n
-				} else {
-					t.Highlight(index, false)
-				}
-
-				n++
-				if n > conf.Search.MaxItems {
-					break
-				}
-			}
+			t.Highlight(index, false)
 		}
 	}
 
+	// if ui.footer.regBtn.GetActive() {
+	// 	//
+	// 	// search with regexp
+
+	// 	//create regexp expresion
+	// 	reg, err := regexp.Compile("(?m)" + substr)
+	// 	if err != nil {
+	// 		// t.tagfind = nil
+	// 		// t.tagfindCurrent = nil
+	// 		log.Println("invalid regexp query", err)
+	// 		return
+	// 	}
+
+	// 	data := []byte(t.GetText())
+	// 	t.findindex = reg.FindAllIndex(data, conf.Search.MaxItems)
+	// 	for n, index := range t.findindex {
+	// 		offset := utf8.RuneCount(data[:index[0]])
+	// 		size := utf8.RuneCount(data[index[0]:index[1]])
+	// 		index := []int{offset, offset + size}
+
+	// 		if n == 0 {
+	// 			t.Highlight(index, true)
+	// 			t.findindexCurrent = n
+	// 		} else {
+	// 			t.Highlight(index, false)
+	// 		}
+	// 	}
+	// } else {
+	// 	// //
+	// 	// search plane text
+
+	// 	var runeText []rune
+	// 	if ui.footer.caseBtn.GetActive() {
+	// 		runeText = []rune(strings.ToLower(t.GetText()))
+	// 		substr = strings.ToLower(substr)
+	// 	} else {
+	// 		runeText = []rune(t.GetText())
+	// 	}
+
+	// 	var n int
+	// 	for i := 0; i < len(runeText); i++ {
+	// 		if i+lensubstr > len(runeText) {
+	// 			continue
+	// 		}
+	// 		if string(runeText[i:i+lensubstr]) == substr {
+	// 			index := []int{i, i + lensubstr}
+	// 			t.findindex = append(t.findindex, index)
+
+	// 			if n == 0 {
+	// 				t.Highlight(index, true)
+	// 				t.findindexCurrent = n
+	// 			} else {
+	// 				t.Highlight(index, false)
+	// 			}
+
+	// 			n++
+	// 			if n > conf.Search.MaxItems {
+	// 				break
+	// 			}
+	// 		}
+	// 	}
+	// }
 }
 
 func (t *Tab) FindNext(next bool) {
@@ -468,4 +493,34 @@ func (t *Tab) Highlight(index []int, current bool) {
 
 func (t *Tab) Scroll(iter gtk.TextIter) {
 	t.sourceview.ScrollToIter(&iter, 0, false, 0, 0)
+}
+
+func (t *Tab) Replace(all bool) {
+	text := t.GetText()
+	findtext := ui.footer.findEntry.GetText()
+	repltext := ui.footer.replEntry.GetText()
+
+	var n = 1
+	if all {
+		n = -1
+	}
+
+	if ui.footer.caseBtn.GetActive() {
+		findtext = strings.ToLower(findtext)
+	}
+
+	if ui.footer.regBtn.GetActive() {
+		reg, err := regexp.Compile("(?m)" + findtext)
+		if err != nil {
+			log.Println("failed compile regexp", err)
+			return
+		}
+		text = reg.ReplaceAllString(text, repltext)
+	} else {
+		text = strings.Replace(text, findtext, repltext, n)
+	}
+
+	t.sourcebuffer.SetText(text)
+
+	t.Find(ui.footer.findEntry.GetText())
 }
