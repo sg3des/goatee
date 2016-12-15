@@ -22,7 +22,9 @@ var (
 )
 
 type UI struct {
-	window  *gtk.Window
+	window     *gtk.Window
+	accelGroup *gtk.AccelGroup
+
 	vbox    *gtk.VBox
 	menubar *gtk.Widget
 
@@ -66,15 +68,15 @@ func CreateUI() *UI {
 
 	ui.window.ShowAll()
 	ui.menubar.SetVisible(false)
-	// footer.SetVisible(false)
+	ui.footer.table.SetVisible(false)
 	return ui
 }
 
 func (ui *UI) createMenubar() *gtk.Widget {
 	actionGroup := gtk.NewActionGroup("my_group")
 	uiManager := ui.createUIManager()
-	accelGroup := uiManager.GetAccelGroup()
-	ui.window.AddAccelGroup(accelGroup)
+	ui.accelGroup = uiManager.GetAccelGroup()
+	ui.window.AddAccelGroup(ui.accelGroup)
 	ui.addFileMenuActions(actionGroup)
 	ui.addEditMenuActions(actionGroup)
 
@@ -236,6 +238,7 @@ func (ui *UI) createFooter() *gtk.Table {
 	ui.footer.closeBtn.SetSizeRequest(20, 20)
 	ui.footer.closeBtn.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
 	ui.footer.closeBtn.Clicked(ui.footerClose)
+	ui.footer.closeBtn.AddAccelerator("activate", ui.accelGroup, gdk.KEY_Escape, 0, gtk.ACCEL_VISIBLE)
 
 	// replacebar
 	ui.footer.replEntry = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
