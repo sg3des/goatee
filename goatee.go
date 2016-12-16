@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"os/user"
 
+	arg "github.com/alexflint/go-arg"
 	"github.com/mattn/go-gtk/gtk"
 	gsv "github.com/mattn/go-gtk/gtksourceview"
 
@@ -13,16 +13,12 @@ import (
 )
 
 var (
+	ui *UI
+
 	gvfsPath = "/run/user/%s/gvfs/"
 
 	width  int
 	height int
-
-	ui *UI
-
-	// window   *gtk.Window
-	// notebook *gtk.Notebook
-	filename string
 
 	newtabiter int
 	tabs       []*Tab
@@ -30,25 +26,24 @@ var (
 	languages = gsv.SourceLanguageManagerGetDefault().GetLanguageIds()
 )
 
+var args struct {
+	Filename string `arg:"positional"`
+}
+
 func init() {
 	log.SetFlags(log.Lshortfile)
-
-	if len(os.Args) > 1 {
-		filename = os.Args[1]
-	}
-
-	ReadConf()
+	arg.MustParse(&args)
 
 	user, _ := user.Current()
-
 	gvfsPath = fmt.Sprintf(gvfsPath, user.Uid)
+	ReadConf()
 }
 
 func main() {
 	gtk.Init(nil)
 	ui = CreateUI()
 
-	NewTab(filename)
+	NewTab(args.Filename)
 
 	gtk.Main()
 }
@@ -73,7 +68,7 @@ func issetLanguage(lang string) bool {
 }
 
 func changeEncoding(data []byte, to, from string) ([]byte, error) {
-	cd, err := iconv.Open(to, from) // convert gbk to utf8
+	cd, err := iconv.Open(to, from) // convert to utf8
 	if err != nil {
 		return nil, fmt.Errorf("unknown charsets: `%s` `%s`, %s", to, from, err)
 	}

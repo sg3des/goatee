@@ -8,19 +8,6 @@ import (
 	"github.com/mattn/go-gtk/gtk"
 )
 
-var (
-// menubar *gtk.Widget
-
-// footer *gtk.Table
-// // footerFind *gtk.HBox
-// // footerRepl *gtk.HBox
-
-// findbar *gtk.Entry
-// replbar *gtk.Entry
-// btnReg  *gtk.ToggleButton
-// btnCase *gtk.ToggleButton
-)
-
 type UI struct {
 	window     *gtk.Window
 	accelGroup *gtk.AccelGroup
@@ -75,6 +62,7 @@ func CreateUI() *UI {
 func (ui *UI) createMenubar() *gtk.Widget {
 	actionGroup := gtk.NewActionGroup("my_group")
 	uiManager := ui.createUIManager()
+
 	ui.accelGroup = uiManager.GetAccelGroup()
 	ui.window.AddAccelGroup(ui.accelGroup)
 	ui.addFileMenuActions(actionGroup)
