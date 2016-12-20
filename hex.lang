@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+ Author: Fabio Zendhi Nagao <nagaozen@evolved.com.br>
+ Copyright (C) 2009 Fabio Zendhi Nagao <nagaozen@evolved.com.br>
+
+ This library is free software; you can redistribute it and/or
+ modify it under the terms of the GNU Library General Public
+ License as published by the Free Software Foundation; either
+ version 2 of the License, or (at your option) any later version.
+
+ This library is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ Library General Public License for more details.
+
+ You should have received a copy of the GNU Library General Public
+ License along with this library; if not, write to the
+ Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+ Boston, MA 02111-1307, USA.
+
+-->
+<language id="hex" _name="Hex" version="2.0" _section="Others">
+  <metadata>
+    <property name="mimetypes">application/*</property>
+    <property name="globs">*.hex;*.exe</property>
+  </metadata>
+
+  <styles>
+    <style id="linenumber" _name="LineNumber" map-to="def:note"/>
+    <style id="ascii" _name="String" map-to="def:keyword"/>
+    <style id="00" _name="00" map-to="def:comment"/>
+    <style id="ff" _name="ff" map-to="def:statement"/>
+  </styles>
+
+   <definitions>
+    <context id="linenumber" style-ref="linenumber">
+      <match>^[0-9a-z]+  </match>
+    </context>
+
+    <context id="ascii" style-ref="ascii">
+      <match>\|.+$</match>
+    </context>
+
+    <context id="00" style-ref="00">
+      <match>00</match>
+    </context>
+
+   <context id="ff" style-ref="ff">
+      <match>ff</match>
+    </context>
+
+
+		<context id="hex" class="no-spell-check">
+			<include>
+        <context ref="linenumber"/>
+				<context ref="ascii"/>
+				<context ref="00"/>
+				<context ref="ff"/>
+      </include>
+		 </context>
+		
+
+
+   </definitions>
+
+</language>

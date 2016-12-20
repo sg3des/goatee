@@ -88,6 +88,9 @@ func NewTab(filename string) {
 				t.Language = t.DetectLanguage()
 			} else {
 				t.Data = []byte(hex.Dump(t.Data))
+				if issetLanguage("hex") {
+					t.Language = "hex"
+				}
 			}
 		}
 
