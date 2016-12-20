@@ -7,11 +7,13 @@
 # Features
 
  * multiple homogeneous(*full width*) Tabs
- * auto detect charset
- * smart detect text file language
- * auto hex view(hexdump) for binary files
+ * auto detect charset and binary files
+ * smart detect language(syntax) for text files
+ * hex editor for binary files with search and replace
 
 # Requirements
  
  * gtk2
  * gtksourceview2 
+
+

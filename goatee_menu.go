@@ -230,7 +230,7 @@ func (ui *UI) createFooter() *gtk.Table {
 
 	// replacebar
 	ui.footer.replEntry = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
-	ui.footer.replEntry.Connect("changed", OnFindInput)
+	// ui.footer.replEntry.Connect("changed", OnFindInput)
 
 	ui.footer.replBtn = gtk.NewButton()
 	ui.footer.replBtn.SetSizeRequest(20, 20)

@@ -27,7 +27,6 @@ import (
 type Tab struct {
 	Filename string
 	File     *os.File
-	Data     []byte
 	Encoding string
 	Language string
 	ReadOnly bool
@@ -61,66 +60,8 @@ func NewTab(filename string) {
 	t := &Tab{}
 	t.Filename = filename
 
-	if !newfile {
-		t.File, err = os.Open(filename)
-		if err != nil {
-			log.Println("failed open file", filename, err)
-			return
-		}
-		defer t.File.Close()
-
-		stat, err := t.File.Stat()
-		if err != nil {
-			log.Println("failed get stat of file", filename, err)
-		}
-
-		t.Data = make([]byte, 128)
-		n, err := t.File.Read(t.Data)
-		if err != nil && err != io.EOF {
-			log.Println("failed read file", err)
-			return
-		}
-		t.Data = t.Data[:n]
-		// t.Data, err = ioutil.ReadAll(t.File)
-		// if err != nil {
-		// 	log.Println("failed read file", filename, err)
-		// }
-
-		if stat.Size() > 0 {
-			t.Encoding = t.DetectEncoding()
-			log.Println(t.Encoding)
-
-			if t.Encoding != "utf-8" && t.Encoding != "binary" {
-				t.Data, err = changeEncoding(t.Data, "utf-8", t.Encoding)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-			}
-
-			if t.Encoding != "binary" {
-				if stat.Size() > 128 {
-					// data := t.Data
-					data, err := ioutil.ReadAll(t.File)
-					if err != nil {
-						log.Println("failed read file", filename, err)
-					}
-					t.Data = append(t.Data, data...)
-				}
-				t.Language = t.DetectLanguage()
-			} else {
-
-				t.Data = []byte(t.Hex())
-				// t.Data = []byte(hex.Dump(t.Data))
-				if issetLanguage("hex") {
-					t.Language = "hex"
-				}
-			}
-		}
-	}
-
 	ct := currentTab()
-	if ct != nil && !newfile && len(ct.Data) == 0 {
+	if ct != nil && !newfile {
 		closeCurrentTab()
 	}
 
@@ -128,35 +69,20 @@ func NewTab(filename string) {
 	t.swin.SetPolicy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
 	t.swin.SetShadowType(gtk.SHADOW_IN)
 
-	if issetLanguage(t.Language) {
-		t.sourcebuffer = gsv.NewSourceBufferWithLanguage(gsv.SourceLanguageManagerGetDefault().GetLanguage(t.Language))
-	} else {
-		t.sourcebuffer = gsv.NewSourceBuffer()
-	}
+	t.sourcebuffer = gsv.NewSourceBuffer()
 
 	t.sourceview = gsv.NewSourceViewWithBuffer(t.sourcebuffer)
 	t.sourceview.SetHighlightCurrentLine(conf.TextView.LineHightlight)
 	t.sourceview.ModifyFontEasy(conf.TextView.Font)
 	t.sourceview.SetShowLineNumbers(conf.TextView.LineNumbers)
 
-	if t.Encoding != "binary" {
-		t.sourceview.SetTabWidth(uint(conf.TextView.IndentWidth))
-		t.sourceview.SetInsertSpacesInsteadOfTabs(conf.TextView.IndentSpace)
-
-		if conf.TextView.WordWrap {
-			t.sourceview.SetWrapMode(gtk.WRAP_WORD_CHAR)
-		}
-	}
-
 	t.DragAndDrop()
 
-	var start gtk.TextIter
-	t.sourcebuffer.GetStartIter(&start)
-	t.sourcebuffer.BeginNotUndoableAction()
-	t.sourcebuffer.Insert(&start, string(t.Data))
-	t.sourcebuffer.EndNotUndoableAction()
-
-	t.sourcebuffer.Connect("changed", t.onchange)
+	// var start gtk.TextIter
+	// t.sourcebuffer.GetStartIter(&start)
+	// t.sourcebuffer.BeginNotUndoableAction()
+	// t.sourcebuffer.Insert(&start, string(t.Data))
+	// t.sourcebuffer.EndNotUndoableAction()
 
 	t.swin.Add(t.sourceview)
 
@@ -174,6 +100,77 @@ func NewTab(filename string) {
 	ui.notebook.SetCurrentPage(n)
 	t.sourceview.GrabFocus()
 
+	// text
+	var text string
+	if !newfile {
+		t.File, err = os.Open(filename)
+		if err != nil {
+			log.Println("failed open file", filename, err)
+			return
+		}
+		defer t.File.Close()
+
+		stat, err := t.File.Stat()
+		if err != nil {
+			log.Println("failed get stat of file", filename, err)
+		}
+
+		// data := make([]byte, 128)
+		// n, err := t.File.Read(data)
+		// if err != nil && err != io.EOF {
+		// 	log.Println("failed read file", err)
+		// 	return
+		// }
+		// data = data[:n]
+		data, err := ioutil.ReadAll(t.File)
+		if err != nil {
+			log.Println("failed read file", filename, err)
+		}
+
+		if stat.Size() > 0 {
+			t.Encoding = t.DetectEncoding(data)
+
+			log.Println(t.Encoding)
+
+			if t.Encoding != "utf-8" && t.Encoding != "binary" {
+				data, err = changeEncoding(data, "utf-8", t.Encoding)
+				if err != nil {
+					fmt.Println("failed change encoding", err)
+					return
+				}
+			}
+
+			if t.Encoding != "binary" {
+				t.Language = t.DetectLanguage(data)
+				text = string(data)
+			} else {
+				text = bytetohex(bytes.NewReader(data))
+				if issetLanguage("hex") {
+					t.Language = "hex"
+				}
+			}
+		}
+	}
+	t.sourcebuffer.BeginNotUndoableAction()
+	t.sourcebuffer.SetText(text)
+	t.sourcebuffer.EndNotUndoableAction()
+
+	if issetLanguage(t.Language) {
+		// t.sourcebuffer = gsv.NewSourceBufferWithLanguage()
+		t.sourcebuffer.SetLanguage(gsv.SourceLanguageManagerGetDefault().GetLanguage(t.Language))
+	}
+
+	if t.Encoding != "binary" {
+		t.sourceview.SetTabWidth(uint(conf.TextView.IndentWidth))
+		t.sourceview.SetInsertSpacesInsteadOfTabs(conf.TextView.IndentSpace)
+
+		if conf.TextView.WordWrap {
+			t.sourceview.SetWrapMode(gtk.WRAP_WORD_CHAR)
+		}
+	}
+
+	t.sourcebuffer.Connect("changed", t.onchange)
+
 	tabs = append(tabs, t)
 }
 
@@ -181,8 +178,8 @@ func (t *Tab) OnScroll() {
 	log.Println("OnScroll")
 }
 
-func (t *Tab) DetectEncoding() string {
-	contentType := strings.Split(http.DetectContentType(t.Data), ";")
+func (t *Tab) DetectEncoding(data []byte) string {
+	contentType := strings.Split(http.DetectContentType(data), ";")
 	if !strings.HasPrefix(contentType[0], "text") {
 		return "binary"
 	}
@@ -200,32 +197,16 @@ func (t *Tab) DetectEncoding() string {
 	// return
 }
 
-func (t *Tab) Hex() string {
-	_, err := t.File.Seek(0, 0)
-	if err != nil {
-		log.Println("failed reset offset", err)
-	}
-	var dump []string
-	var line = make([]byte, conf.Hex.BytesInLine)
-	for {
-		n, err := t.File.Read(line)
-		if err != nil && err != io.EOF {
-			log.Println("failed read file", err)
-			break
-		}
+// func (t *Tab) Hex() string {
+// 	_, err := t.File.Seek(0, 0)
+// 	if err != nil {
+// 		log.Println("failed reset offset", err)
+// 	}
 
-		line = line[:n]
-		if err == io.EOF {
-			break
-		}
+// 	return bytetohex(t.File)
+// }
 
-		dump = append(dump, fmt.Sprintf("% x", line))
-	}
-
-	return strings.Join(dump, "\n")
-}
-
-func (t *Tab) DetectLanguage() string {
+func (t *Tab) DetectLanguage(data []byte) string {
 	if len(languages) == 0 {
 		return ""
 	}
@@ -239,10 +220,10 @@ func (t *Tab) DetectLanguage() string {
 	}
 
 	size := 64
-	if size > len(t.Data) {
-		size = len(t.Data)
+	if size > len(data) {
+		size = len(data)
 	}
-	line := string(bytes.SplitN(t.Data[:size], []byte("\n"), 2)[0])
+	line := string(bytes.SplitN(data[:size], []byte("\n"), 2)[0])
 	_line := strings.Split(line, " ")
 	if issetLanguage(_line[len(_line)-1]) {
 		return _line[len(_line)-1]
@@ -326,40 +307,35 @@ func (t *Tab) SetTabFGColor(col [3]int) {
 
 func (t *Tab) Save() {
 	var err error
-	var text []byte
+	var data []byte
 	if t.Encoding == "binary" {
-		// var hexdata []byte
 
-		hexdata := regexp.MustCompile("(?m)[ \n\r]").ReplaceAllString(t.GetText(), "")
-		text, err = hex.DecodeString(hexdata)
+		data, err = hextobyte(t.GetText(false))
 		if err != nil {
 			log.Println("failed decode hex", err)
 			return
 		}
-		// _, err := hex.Decode(hexdata, []byte(t.GetText()))
-		// if err != nil {
-		// 	log.Fatalln(err)
-		// }
-		// hexdata := regexp.MustCompile(" \n").ReplaceAllString(t.GetText(), "")
-		// hexdata := strings.Replace(t.GetText(), " \n", "", -1)
-		// log.Println(data, err)
 
-		// log.Println("sorry, binary data save not yet done")
-		// return
 	} else if t.ReadOnly {
+
 		log.Println("sorry, file is open readonly mode")
 		return
+
 	} else if t.Encoding == "ASCII" || t.Encoding == "UTF-8" {
-		text = []byte(t.GetText())
+
+		data = []byte(t.GetText(true))
+
 	} else {
-		text, err = changeEncoding([]byte(t.GetText()), t.Encoding, "utf-8")
+
+		data, err = changeEncoding([]byte(t.GetText(true)), t.Encoding, "utf-8")
 		if err != nil {
 			log.Println("failed restore encoding, save failed,", err)
 			return
 		}
+
 	}
 
-	if err := ioutil.WriteFile(t.Filename, text, 0644); err != nil {
+	if err := ioutil.WriteFile(t.Filename, data, 0644); err != nil {
 		log.Println("failed save file,", err)
 		return
 	}
@@ -367,13 +343,13 @@ func (t *Tab) Save() {
 	t.SetTabFGColor(conf.Tabs.FGNormal)
 }
 
-func (t *Tab) GetText() string {
+func (t *Tab) GetText(hiddenChars bool) string {
 	var start gtk.TextIter
 	var end gtk.TextIter
 
 	t.sourcebuffer.GetStartIter(&start)
 	t.sourcebuffer.GetEndIter(&end)
-	return t.sourcebuffer.GetText(&start, &end, true)
+	return t.sourcebuffer.GetText(&start, &end, hiddenChars)
 }
 
 func (t *Tab) Find(substr string) {
@@ -390,12 +366,20 @@ func (t *Tab) Find(substr string) {
 		return
 	}
 
-	text := t.GetText()
-
-	t.findindex = [][]int{}
-
 	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
 	t.tagfindCurrent = t.sourcebuffer.CreateTag("findCurr", map[string]string{"background": "#eeaa00"})
+
+	if t.Encoding != "binary" {
+		t.findInText(substr)
+	} else {
+		t.findInHex(substr)
+	}
+}
+
+func (t *Tab) findInText(substr string) {
+	text := t.GetText(true)
+
+	t.findindex = [][]int{}
 
 	if ui.footer.caseBtn.GetActive() {
 		substr = strings.ToLower(substr)
@@ -410,9 +394,11 @@ func (t *Tab) Find(substr string) {
 		log.Println("invalid regexp query", err)
 		return
 	}
+	log.Println("findAll")
 
-	t.findindex = reg.FindAllIndex([]byte(text), -1)
-	// t.findindex = reg.FindAllStringIndex(text, -1)
+	t.findindex = reg.FindAllIndex([]byte(text), conf.Search.MaxItems)
+
+	log.Println(t.findindex)
 
 	data := []byte(text)
 	for i, index := range t.findindex {
@@ -424,70 +410,36 @@ func (t *Tab) Find(substr string) {
 			t.Highlight(index, false)
 		}
 	}
-
-	// if ui.footer.regBtn.GetActive() {
-	// 	//
-	// 	// search with regexp
-
-	// 	//create regexp expresion
-	// 	reg, err := regexp.Compile("(?m)" + substr)
-	// 	if err != nil {
-	// 		// t.tagfind = nil
-	// 		// t.tagfindCurrent = nil
-	// 		log.Println("invalid regexp query", err)
-	// 		return
-	// 	}
-
-	// 	data := []byte(t.GetText())
-	// 	t.findindex = reg.FindAllIndex(data, conf.Search.MaxItems)
-	// 	for n, index := range t.findindex {
-	// 		offset := utf8.RuneCount(data[:index[0]])
-	// 		size := utf8.RuneCount(data[index[0]:index[1]])
-	// 		index := []int{offset, offset + size}
-
-	// 		if n == 0 {
-	// 			t.Highlight(index, true)
-	// 			t.findindexCurrent = n
-	// 		} else {
-	// 			t.Highlight(index, false)
-	// 		}
-	// 	}
-	// } else {
-	// 	// //
-	// 	// search plane text
-
-	// 	var runeText []rune
-	// 	if ui.footer.caseBtn.GetActive() {
-	// 		runeText = []rune(strings.ToLower(t.GetText()))
-	// 		substr = strings.ToLower(substr)
-	// 	} else {
-	// 		runeText = []rune(t.GetText())
-	// 	}
-
-	// 	var n int
-	// 	for i := 0; i < len(runeText); i++ {
-	// 		if i+lensubstr > len(runeText) {
-	// 			continue
-	// 		}
-	// 		if string(runeText[i:i+lensubstr]) == substr {
-	// 			index := []int{i, i + lensubstr}
-	// 			t.findindex = append(t.findindex, index)
-
-	// 			if n == 0 {
-	// 				t.Highlight(index, true)
-	// 				t.findindexCurrent = n
-	// 			} else {
-	// 				t.Highlight(index, false)
-	// 			}
-
-	// 			n++
-	// 			if n > conf.Search.MaxItems {
-	// 				break
-	// 			}
-	// 		}
-	// 	}
-	// }
 }
+
+func (t *Tab) findInHex(substr string) {
+	substr = strings.Replace(substr, " ", "", -1)
+
+	substr = regexp.MustCompile("(?i)([0-9a-zA-Z]{2})").ReplaceAllString(substr, "$1[ \r\n]*")
+
+	reg, err := regexp.Compile(substr)
+	if err != nil {
+		log.Println("invalid regexp query", err)
+	}
+
+	t.findindex = reg.FindAllStringIndex(t.GetText(true), conf.Search.MaxItems)
+
+	// log.Println(t.findindex)
+	for i, index := range t.findindex {
+		if i == 0 {
+			t.Highlight(index, true)
+		} else {
+			t.Highlight(index, false)
+		}
+	}
+	// hextext := regexp.MustCompile("(?m)[ \n\r]").ReplaceAllString(t.GetText(), "")
+
+	// regexp.Compile("(?m)"+substr)
+}
+
+// func (t *Tab) HexToBytes() []byte {
+// 	return t.
+// }
 
 func (t *Tab) FindNext(next bool) {
 	if len(t.findindex) < 2 {
@@ -517,6 +469,7 @@ func (t *Tab) Highlight(index []int, current bool) {
 	var end gtk.TextIter
 	t.sourcebuffer.GetIterAtOffset(&start, index[0])
 	t.sourcebuffer.GetIterAtOffset(&end, index[1])
+	log.Println(index)
 
 	if current {
 		t.sourcebuffer.RemoveTag(t.tagfind, &start, &end)
@@ -529,35 +482,98 @@ func (t *Tab) Highlight(index []int, current bool) {
 }
 
 func (t *Tab) Scroll(iter gtk.TextIter) {
+	log.Println(iter.GetOffset())
 	t.sourceview.ScrollToIter(&iter, 0, false, 0, 0)
 }
 
 func (t *Tab) Replace(all bool) {
-	text := t.GetText()
-	findtext := ui.footer.findEntry.GetText()
-	repltext := ui.footer.replEntry.GetText()
-
 	var n = 1
 	if all {
 		n = -1
 	}
 
+	if t.Encoding != "binary" {
+		t.replaceInText(n)
+	} else {
+		t.replaceInHex(n)
+	}
+}
+
+func (t *Tab) replaceInText(n int) {
+	findtext := ui.footer.findEntry.GetText()
+	repltext := ui.footer.replEntry.GetText()
+
 	if ui.footer.caseBtn.GetActive() {
 		findtext = strings.ToLower(findtext)
 	}
 
+	var text string
 	if ui.footer.regBtn.GetActive() {
 		reg, err := regexp.Compile("(?m)" + findtext)
 		if err != nil {
 			log.Println("failed compile regexp", err)
 			return
 		}
-		text = reg.ReplaceAllString(text, repltext)
+		log.Println("regexp always replace all occurrences")
+		text = reg.ReplaceAllString(t.GetText(true), repltext)
 	} else {
-		text = strings.Replace(text, findtext, repltext, n)
+		text = strings.Replace(t.GetText(true), findtext, repltext, n)
 	}
 
 	t.sourcebuffer.SetText(text)
 
 	t.Find(ui.footer.findEntry.GetText())
+}
+
+func (t *Tab) replaceInHex(n int) {
+	find, err := hextobyte(ui.footer.findEntry.GetText())
+	if err != nil {
+		log.Println("invalid hex string", err)
+		return
+	}
+	repl, err := hextobyte(ui.footer.replEntry.GetText())
+	if err != nil {
+		log.Println("invalid hex string", err)
+		return
+	}
+
+	data, err := hextobyte(t.GetText(false))
+	if err != nil {
+		log.Println("invalid hex string", err)
+		return
+	}
+
+	data = bytes.Replace(data, find, repl, n)
+
+	t.sourcebuffer.SetText(string(data))
+
+	text := bytetohex(bytes.NewReader(data))
+	t.sourcebuffer.SetText(text)
+	t.Find(ui.footer.findEntry.GetText())
+}
+
+func hextobyte(hexstr string) ([]byte, error) {
+	hexstr = regexp.MustCompile("(?m)[ \n\r]").ReplaceAllString(hexstr, "")
+	return hex.DecodeString(hexstr)
+}
+
+func bytetohex(r io.Reader) string {
+	var dump []string
+	var line = make([]byte, conf.Hex.BytesInLine)
+	for {
+		n, err := r.Read(line)
+		if err != nil && err != io.EOF {
+			log.Println("failed read file", err)
+			break
+		}
+
+		line = line[:n]
+		if err == io.EOF {
+			break
+		}
+
+		dump = append(dump, fmt.Sprintf("% x", line))
+	}
+
+	return strings.Join(dump, "\n")
 }
