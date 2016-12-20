@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math"
@@ -68,13 +69,26 @@ func NewTab(filename string) {
 		}
 		defer t.File.Close()
 
-		t.Data, err = ioutil.ReadAll(t.File)
+		stat, err := t.File.Stat()
 		if err != nil {
-			log.Println("failed read file", filename, err)
+			log.Println("failed get stat of file", filename, err)
 		}
 
-		if len(t.Data) > 0 {
+		t.Data = make([]byte, 128)
+		n, err := t.File.Read(t.Data)
+		if err != nil && err != io.EOF {
+			log.Println("failed read file", err)
+			return
+		}
+		t.Data = t.Data[:n]
+		// t.Data, err = ioutil.ReadAll(t.File)
+		// if err != nil {
+		// 	log.Println("failed read file", filename, err)
+		// }
+
+		if stat.Size() > 0 {
 			t.Encoding = t.DetectEncoding()
+			log.Println(t.Encoding)
 
 			if t.Encoding != "utf-8" && t.Encoding != "binary" {
 				t.Data, err = changeEncoding(t.Data, "utf-8", t.Encoding)
@@ -85,15 +99,24 @@ func NewTab(filename string) {
 			}
 
 			if t.Encoding != "binary" {
+				if stat.Size() > 128 {
+					// data := t.Data
+					data, err := ioutil.ReadAll(t.File)
+					if err != nil {
+						log.Println("failed read file", filename, err)
+					}
+					t.Data = append(t.Data, data...)
+				}
 				t.Language = t.DetectLanguage()
 			} else {
-				t.Data = []byte(hex.Dump(t.Data))
+
+				t.Data = []byte(t.Hex())
+				// t.Data = []byte(hex.Dump(t.Data))
 				if issetLanguage("hex") {
 					t.Language = "hex"
 				}
 			}
 		}
-
 	}
 
 	ct := currentTab()
@@ -114,9 +137,9 @@ func NewTab(filename string) {
 	t.sourceview = gsv.NewSourceViewWithBuffer(t.sourcebuffer)
 	t.sourceview.SetHighlightCurrentLine(conf.TextView.LineHightlight)
 	t.sourceview.ModifyFontEasy(conf.TextView.Font)
+	t.sourceview.SetShowLineNumbers(conf.TextView.LineNumbers)
 
 	if t.Encoding != "binary" {
-		t.sourceview.SetShowLineNumbers(conf.TextView.LineNumbers)
 		t.sourceview.SetTabWidth(uint(conf.TextView.IndentWidth))
 		t.sourceview.SetInsertSpacesInsteadOfTabs(conf.TextView.IndentSpace)
 
@@ -152,8 +175,10 @@ func NewTab(filename string) {
 	t.sourceview.GrabFocus()
 
 	tabs = append(tabs, t)
+}
 
-	// homogenousTabs()
+func (t *Tab) OnScroll() {
+	log.Println("OnScroll")
 }
 
 func (t *Tab) DetectEncoding() string {
@@ -176,40 +201,28 @@ func (t *Tab) DetectEncoding() string {
 }
 
 func (t *Tab) Hex() string {
-	// t.File.Seek(0, 0)
-	// var hexdata []string
-	// var b = make([]byte, 16)
-	// var err error
-	// var n int
-	// for err == nil {
-	// 	n, err = t.File.Read(b)
-	// 	b = b[:n]
+	_, err := t.File.Seek(0, 0)
+	if err != nil {
+		log.Println("failed reset offset", err)
+	}
+	var dump []string
+	var line = make([]byte, conf.Hex.BytesInLine)
+	for {
+		n, err := t.File.Read(line)
+		if err != nil && err != io.EOF {
+			log.Println("failed read file", err)
+			break
+		}
 
-	// 	var line []string
-	// 	for n := range b {
-	// 		if n%2 == 0 {
-	// 			line = append(line, fmt.Sprintf("%02x%02x", b[n], b[n+1]))
-	// 		}
-	// 	}
-	// 	hexdata = append(hexdata, strings.Join(line, " "))
-	// }
+		line = line[:n]
+		if err == io.EOF {
+			break
+		}
 
-	// return strings.Join(hexdata, "\n")
-
-	// t.File.Seek(0, 0)
-	var hexdata []string
-	var b = make([]byte, 16)
-	var err error
-	var n int
-	reader := bytes.NewReader(t.Data)
-	for err == nil {
-		n, err = reader.Read(b)
-		b = b[:n]
-
-		hexdata = append(hexdata, fmt.Sprintf("% 02x", b))
+		dump = append(dump, fmt.Sprintf("% x", line))
 	}
 
-	return strings.Join(hexdata, "\n")
+	return strings.Join(dump, "\n")
 }
 
 func (t *Tab) DetectLanguage() string {
@@ -225,7 +238,11 @@ func (t *Tab) DetectLanguage() string {
 		return ext
 	}
 
-	line := string(bytes.SplitN(t.Data[:64], []byte("\n"), 2)[0])
+	size := 64
+	if size > len(t.Data) {
+		size = len(t.Data)
+	}
+	line := string(bytes.SplitN(t.Data[:size], []byte("\n"), 2)[0])
 	_line := strings.Split(line, " ")
 	if issetLanguage(_line[len(_line)-1]) {
 		return _line[len(_line)-1]
@@ -311,7 +328,24 @@ func (t *Tab) Save() {
 	var err error
 	var text []byte
 	if t.Encoding == "binary" {
-		log.Println("sorry, binary data save not yet done")
+		// var hexdata []byte
+
+		hexdata := regexp.MustCompile("(?m)[ \n\r]").ReplaceAllString(t.GetText(), "")
+		text, err = hex.DecodeString(hexdata)
+		if err != nil {
+			log.Println("failed decode hex", err)
+			return
+		}
+		// _, err := hex.Decode(hexdata, []byte(t.GetText()))
+		// if err != nil {
+		// 	log.Fatalln(err)
+		// }
+		// hexdata := regexp.MustCompile(" \n").ReplaceAllString(t.GetText(), "")
+		// hexdata := strings.Replace(t.GetText(), " \n", "", -1)
+		// log.Println(data, err)
+
+		// log.Println("sorry, binary data save not yet done")
+		// return
 	} else if t.ReadOnly {
 		log.Println("sorry, file is open readonly mode")
 		return

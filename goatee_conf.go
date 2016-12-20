@@ -29,6 +29,9 @@ var conf struct {
 	Search struct {
 		MaxItems int `toml:"max-items"`
 	}
+	Hex struct {
+		BytesInLine int `toml:"bytes-in-line"`
+	}
 }
 
 func ReadConf() {
