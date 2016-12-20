@@ -17,9 +17,6 @@ var conf struct {
 		IndentSpace    bool `toml:"indent-space"`
 		IndentWidth    int  `toml:"indent-width"`
 	}
-	Charset struct {
-		Language string
-	}
 	Tabs struct {
 		Homogenous bool
 		FGNormal   [3]int `toml:"fg-normal"`
@@ -44,14 +41,14 @@ func ReadConf() {
 	conf.TextView.IndentSpace = false
 	conf.TextView.IndentWidth = 2
 
-	conf.Charset.Language = "ru"
-
 	conf.Tabs.Homogenous = true
 	conf.Tabs.FGNormal = [3]int{200, 200, 200}
 	conf.Tabs.FGModified = [3]int{220, 20, 20}
 	conf.Tabs.FGNew = [3]int{250, 200, 10}
 
 	conf.Search.MaxItems = 1024
+
+	conf.Hex.BytesInLine = 16
 
 	for _, configfile := range []string{
 		path.Join(os.Getenv("XDG_CONFIG_HOME"), "goatee", "goatee.conf"),
