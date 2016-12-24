@@ -352,58 +352,53 @@ func (t *Tab) GetText(hiddenChars bool) string {
 	return t.sourcebuffer.GetText(&start, &end, hiddenChars)
 }
 
-func (t *Tab) Find(substr string) {
+func (t *Tab) Find() {
 	if t.tagfind != nil {
 		tabletag := t.sourcebuffer.GetTagTable()
 		tabletag.Remove(t.tagfind)
 		tabletag.Remove(t.tagfindCurrent)
 	}
 
-	lensubstr := len([]rune(substr))
-	if lensubstr == 0 {
+	find := ui.footer.findEntry.GetText()
+	if len(find) == 0 {
 		t.tagfind = nil
 		t.tagfindCurrent = nil
 		return
 	}
 
-	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
-	t.tagfindCurrent = t.sourcebuffer.CreateTag("findCurr", map[string]string{"background": "#eeaa00"})
-
-	if t.Encoding != "binary" {
-		t.findInText(substr)
-	} else {
-		t.findInHex(substr)
-	}
-}
-
-func (t *Tab) findInText(substr string) {
-	text := t.GetText(true)
-
-	t.findindex = [][]int{}
-
+	flags := "ms"
 	if ui.footer.caseBtn.GetActive() {
-		substr = strings.ToLower(substr)
+		flags += "i"
 	}
 
 	if !ui.footer.regBtn.GetActive() {
-		substr = regexp.QuoteMeta(substr)
+		find = regexp.QuoteMeta(find)
 	}
 
-	reg, err := regexp.Compile("(?m)" + substr)
+	if t.Encoding == "binary" {
+		find = regexp.MustCompile("[ \n\r]+").ReplaceAllString(find, "")
+		find = regexp.MustCompile("(?i)([0-9a-z]{2})").ReplaceAllString(find, "$1[ \r\n]*")
+	}
+
+	text := t.GetText(true)
+
+	expr := fmt.Sprintf("(?%s)%s", flags, find)
+	reg, err := regexp.Compile(expr)
 	if err != nil {
-		log.Println("invalid regexp query", err)
-		return
+		log.Println("invalid search query,", err)
 	}
-	log.Println("findAll")
+	log.Println(expr)
+	t.findindex = reg.FindAllStringIndex(text, conf.Search.MaxItems)
 
-	t.findindex = reg.FindAllIndex([]byte(text), conf.Search.MaxItems)
+	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
+	t.tagfindCurrent = t.sourcebuffer.CreateTag("findCurr", map[string]string{"background": "#eeaa00"})
 
-	log.Println(t.findindex)
-
-	data := []byte(text)
 	for i, index := range t.findindex {
-		index[0] = utf8.RuneCount(data[:index[0]])
-		index[1] = utf8.RuneCount(data[:index[1]])
+		data := []byte(text)
+		if t.Encoding != "binary" {
+			index[0] = utf8.RuneCount(data[:index[0]])
+			index[1] = utf8.RuneCount(data[:index[1]])
+		}
 		if i == 0 {
 			t.Highlight(index, true)
 		} else {
@@ -411,35 +406,6 @@ func (t *Tab) findInText(substr string) {
 		}
 	}
 }
-
-func (t *Tab) findInHex(substr string) {
-	substr = strings.Replace(substr, " ", "", -1)
-
-	substr = regexp.MustCompile("(?i)([0-9a-zA-Z]{2})").ReplaceAllString(substr, "$1[ \r\n]*")
-
-	reg, err := regexp.Compile(substr)
-	if err != nil {
-		log.Println("invalid regexp query", err)
-	}
-
-	t.findindex = reg.FindAllStringIndex(t.GetText(true), conf.Search.MaxItems)
-
-	// log.Println(t.findindex)
-	for i, index := range t.findindex {
-		if i == 0 {
-			t.Highlight(index, true)
-		} else {
-			t.Highlight(index, false)
-		}
-	}
-	// hextext := regexp.MustCompile("(?m)[ \n\r]").ReplaceAllString(t.GetText(), "")
-
-	// regexp.Compile("(?m)"+substr)
-}
-
-// func (t *Tab) HexToBytes() []byte {
-// 	return t.
-// }
 
 func (t *Tab) FindNext(next bool) {
 	if len(t.findindex) < 2 {
@@ -469,7 +435,6 @@ func (t *Tab) Highlight(index []int, current bool) {
 	var end gtk.TextIter
 	t.sourcebuffer.GetIterAtOffset(&start, index[0])
 	t.sourcebuffer.GetIterAtOffset(&end, index[1])
-	log.Println(index)
 
 	if current {
 		t.sourcebuffer.RemoveTag(t.tagfind, &start, &end)
@@ -522,7 +487,7 @@ func (t *Tab) replaceInText(n int) {
 
 	t.sourcebuffer.SetText(text)
 
-	t.Find(ui.footer.findEntry.GetText())
+	t.Find()
 }
 
 func (t *Tab) replaceInHex(n int) {
@@ -549,7 +514,7 @@ func (t *Tab) replaceInHex(n int) {
 
 	text := bytetohex(bytes.NewReader(data))
 	t.sourcebuffer.SetText(text)
-	t.Find(ui.footer.findEntry.GetText())
+	t.Find()
 }
 
 func hextobyte(hexstr string) ([]byte, error) {

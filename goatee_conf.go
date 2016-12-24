@@ -9,6 +9,10 @@ import (
 )
 
 var conf struct {
+	UI struct {
+		MenuBarVisible   bool `toml:"menubar-visible"`
+		StatusBarVisible bool `toml:"statusbar-visible"`
+	}
 	TextView struct {
 		Font           string
 		LineHightlight bool `toml:"line-hightlight"`
@@ -32,8 +36,10 @@ var conf struct {
 }
 
 func ReadConf() {
-
 	// default values
+	conf.UI.MenuBarVisible = false
+	conf.UI.StatusBarVisible = false
+
 	conf.TextView.Font = "Liberation Mono 8"
 	conf.TextView.LineHightlight = true
 	conf.TextView.LineNumbers = true

@@ -281,7 +281,7 @@ func (ui *UI) footerClose() {
 }
 
 func OnFindInput() {
-	currentTab().Find(ui.footer.findEntry.GetText())
+	currentTab().Find()
 }
 
 func OnFindNext() {

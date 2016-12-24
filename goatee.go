@@ -27,7 +27,7 @@ var (
 )
 
 var args struct {
-	Filename string `arg:"positional"`
+	Files []string `arg:"positional"`
 }
 
 func init() {
@@ -43,7 +43,13 @@ func main() {
 	gtk.Init(nil)
 	ui = CreateUI()
 
-	NewTab(args.Filename)
+	if len(args.Files) > 0 {
+		for _, filename := range args.Files {
+			NewTab(filename)
+		}
+	} else {
+		NewTab("")
+	}
 
 	gtk.Main()
 }

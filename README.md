@@ -17,3 +17,6 @@
  * gtksourceview2 
 
 
+# Knownbugs
+ * for hex view regexp replace not work
+ * for hex view search with regexp, some expressions not correct, because search is performed for a hex string not for a byte array
