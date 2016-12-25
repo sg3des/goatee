@@ -153,6 +153,7 @@ func dialogSave() string {
 }
 
 func (ui *UI) createUIManager() *gtk.Widget {
+
 	UIxml := `
 <ui>
 	<menubar name='MenuBar'>
@@ -177,7 +178,7 @@ func (ui *UI) createUIManager() *gtk.Widget {
 			<menuitem action='ReplaceAll'/>
 		</menu>
 
-		<menu action='View'>
+		<menu name='View' action='View'>
 			<menuitem action='Menubar'/>
 		</menu>
 
@@ -193,6 +194,7 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	ui.actionGroup = gtk.NewActionGroup("my_group")
 	uiManager.InsertActionGroup(ui.actionGroup, 0)
 
+	// File
 	ui.actionGroup.AddAction(gtk.NewAction("File", "File", "", ""))
 
 	ui.newAction("NewTab", "New Tab", "<control>t", ui.NewTab)
@@ -202,6 +204,7 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	ui.newAction("CloseTab", "Close Tab", "<control>w", ui.CloseTab)
 	ui.newActionStock("Quit", gtk.STOCK_QUIT, "", ui.Quit)
 
+	// Edit
 	ui.actionGroup.AddAction(gtk.NewAction("Edit", "Edit", "", ""))
 
 	ui.newActionStock("Find", gtk.STOCK_FIND, "", ui.ShowFindbar)
@@ -212,7 +215,10 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	ui.newAction("ReplaceOne", "Replace One", "<control><shift>h", ui.ReplaceOne)
 	ui.newAction("ReplaceAll", "Replace All", "<control><alt>Return", ui.ReplaceAll)
 
+	// View
 	ui.actionGroup.AddAction(gtk.NewAction("View", "View", "", ""))
+	// ui.actionGroup.AddAction(gtk.NewAction("Encoding", "Encoding", "", ""))
+
 	ui.newToggleAction("Menubar", "Menubar", "<control>M", conf.UI.MenuBarVisible, ui.ToggleMenuBar)
 
 	ui.menubar = uiManager.GetWidget("/MenuBar")
