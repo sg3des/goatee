@@ -8,6 +8,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+//conf if structure contains configuration
 var conf struct {
 	UI struct {
 		MenuBarVisible   bool `toml:"menubar-visible"`
@@ -35,6 +36,7 @@ var conf struct {
 	}
 }
 
+//ReadConf set default values for configuration and parse config file
 func ReadConf() {
 	// default values
 	conf.UI.MenuBarVisible = false
@@ -56,6 +58,7 @@ func ReadConf() {
 
 	conf.Hex.BytesInLine = 16
 
+	//parse config files
 	for _, configfile := range []string{
 		path.Join(os.Getenv("XDG_CONFIG_HOME"), "goatee", "goatee.conf"),
 		path.Join(os.Getenv("HOME"), ".config", "goatee", "goatee.conf"),
@@ -69,8 +72,7 @@ func ReadConf() {
 		if err != nil {
 			log.Println("failed decode config file", configfile, "reason:", err)
 			continue
-		} else {
-			return
 		}
+		break
 	}
 }

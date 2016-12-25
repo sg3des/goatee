@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"path"
 
 	"github.com/mattn/go-gtk/gdk"
@@ -9,12 +9,12 @@ import (
 )
 
 type UI struct {
-	window     *gtk.Window
-	accelGroup *gtk.AccelGroup
+	window      *gtk.Window
+	accelGroup  *gtk.AccelGroup
+	actionGroup *gtk.ActionGroup
 
-	vbox    *gtk.VBox
-	menubar *gtk.Widget
-
+	vbox     *gtk.VBox
+	menubar  *gtk.Widget
 	notebook *gtk.Notebook
 
 	footer struct {
@@ -39,132 +39,204 @@ type UI struct {
 func CreateUI() *UI {
 	ui := &UI{}
 	ui.window = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
-	ui.window.SetDefaultSize(700, 300)
+	ui.window.SetDefaultSize(600, 300)
 
 	ui.vbox = gtk.NewVBox(false, 0)
+	ui.vbox.PackStart(ui.createUIManager(), false, false, 0)
 	ui.notebook = gtk.NewNotebook()
-	ui.vbox.Add(ui.notebook)
+	ui.vbox.PackStart(ui.notebook, true, true, 0)
+	ui.vbox.PackStart(ui.createFooter(), false, false, 0)
 	ui.window.Add(ui.vbox)
 
-	ui.vbox.PackStart(ui.createMenubar(), false, false, 0)
-
-	ui.vbox.PackEnd(ui.createFooter(), false, false, 0)
-
-	ui.window.Connect("destroy", exit)
+	ui.window.Connect("destroy", ui.Quit)
 	ui.window.Connect("check-resize", ui.windowResize)
 
 	ui.window.ShowAll()
-	ui.menubar.SetVisible(false)
+
 	ui.footer.table.SetVisible(false)
+	ui.menubar.SetVisible(conf.UI.MenuBarVisible)
 	return ui
 }
 
-func (ui *UI) createMenubar() *gtk.Widget {
-	actionGroup := gtk.NewActionGroup("my_group")
-	uiManager := ui.createUIManager()
+func (ui *UI) NewTab() {
+	NewTab("")
+}
+func (ui *UI) Open() {
+	dialog := gtk.NewFileChooserDialog("open", ui.window, gtk.FILE_CHOOSER_ACTION_OPEN, "open file", gtk.RESPONSE_OK)
 
-	ui.accelGroup = uiManager.GetAccelGroup()
-	ui.window.AddAccelGroup(ui.accelGroup)
-	ui.addFileMenuActions(actionGroup)
-	ui.addEditMenuActions(actionGroup)
+	dialog.Run()
+	filename := dialog.GetFilename()
+	dialog.Destroy()
 
-	uiManager.InsertActionGroup(actionGroup, 0)
-	ui.menubar = uiManager.GetWidget("/MenuBar")
-	return ui.menubar
+	if len(filename) > 0 {
+		NewTab(filename)
+	}
+}
+func (ui *UI) Save() {
+	t := currentTab()
+
+	if t.File == nil {
+		filename := dialogSave()
+		if len(filename) == 0 {
+			return
+		}
+
+		t.Filename = filename
+		t.label.SetText(path.Base(filename))
+		t.label.SetTooltipText(filename)
+	}
+	t.Save()
+}
+func (ui *UI) SaveAs() {
+	t := currentTab()
+
+	filename := dialogSave()
+	if len(filename) == 0 {
+		return
+	}
+
+	t.Filename = filename
+	t.label.SetText(path.Base(filename))
+	t.label.SetTooltipText(filename)
+	t.Save()
+}
+func (ui *UI) CloseTab() {
+	closeCurrentTab()
+
+	if len(tabs) == 0 {
+		gtk.MainQuit()
+	}
+}
+func (ui *UI) Quit() {
+	for _, t := range tabs {
+		t.File.Close()
+	}
+	gtk.MainQuit()
 }
 
-func (ui *UI) createUIManager() *gtk.UIManager {
+func (ui *UI) Find() {
+	currentTab().Find()
+}
+func (ui *UI) FindNext() {
+	currentTab().FindNext(true)
+}
+func (ui *UI) FindPrev() {
+	currentTab().FindNext(false)
+}
+func (ui *UI) ReplaceOne() {
+	currentTab().Replace(false)
+}
+func (ui *UI) ReplaceAll() {
+	currentTab().Replace(true)
+}
+
+func (ui *UI) ToggleMenuBar() {
+	conf.UI.MenuBarVisible = !conf.UI.MenuBarVisible
+	ui.menubar.SetVisible(conf.UI.MenuBarVisible)
+
+}
+func (ui *UI) ToggleStatusBar() {
+	log.Println("statusbar")
+	// conf.UI.StatusBarVisible = !conf.UI.StatusBarVisible
+	// ui.statusbar.SetVisible(conf.UI.StatusBarVisible)
+	// ui.menu.statusbar.SetActive(conf.UI.StatusBarVisible)
+}
+
+func dialogSave() string {
+	dialog := gtk.NewFileChooserDialog("save", ui.window, gtk.FILE_CHOOSER_ACTION_SAVE, "save file", gtk.RESPONSE_OK)
+
+	dialog.Run()
+	filename := dialog.GetFilename()
+	dialog.Destroy()
+
+	return filename
+}
+
+func (ui *UI) createUIManager() *gtk.Widget {
 	UIxml := `
 <ui>
-  <menubar name='MenuBar'>
-    <menu action='FileMenu'>
-      <menuitem action='NewTab' />
-      <menuitem action='CloseTab' />
-      <menuitem action='FileOpen' />
-      <menuitem action='FileSave' />
-      <menuitem action='FileSaveAs' />
-      <separator />
-      <menuitem action='FileQuit' />
-    </menu>
-    <menu action='EditMenu'>
-      <menuitem action='Find'/>
-      <menuitem action='FindNext'/>
-      <menuitem action='FindPrev'/>
-      <separator />
-      <menuitem action='Replace'/>
-      <menuitem action='ReplaceOne'/>
-      <menuitem action='ReplaceAll'/>
-    </menu>
-  </menubar>
+	<menubar name='MenuBar'>
+
+		<menu action='File'>
+			<menuitem action='NewTab' />
+			<menuitem action='Open' />
+			<menuitem action='Save' />
+			<menuitem action='SaveAs' />
+			<separator />
+			<menuitem action='CloseTab' />
+			<menuitem action='Quit' />
+		</menu>
+
+		<menu action='Edit'>
+			<menuitem action='Find'/>
+			<menuitem action='FindNext'/>
+			<menuitem action='FindPrev'/>
+			<separator />
+			<menuitem action='Replace'/>
+			<menuitem action='ReplaceOne'/>
+			<menuitem action='ReplaceAll'/>
+		</menu>
+
+		<menu action='View'>
+			<menuitem action='Menubar'/>
+		</menu>
+
+	</menubar>
 </ui>
 `
 	uiManager := gtk.NewUIManager()
 	uiManager.AddUIFromString(UIxml)
-	return uiManager
+
+	ui.accelGroup = uiManager.GetAccelGroup()
+	ui.window.AddAccelGroup(ui.accelGroup)
+
+	ui.actionGroup = gtk.NewActionGroup("my_group")
+	uiManager.InsertActionGroup(ui.actionGroup, 0)
+
+	ui.actionGroup.AddAction(gtk.NewAction("File", "File", "", ""))
+
+	ui.newAction("NewTab", "New Tab", "<control>t", ui.NewTab)
+	ui.newActionStock("Open", gtk.STOCK_OPEN, "", ui.Open)
+	ui.newAction("Save", gtk.STOCK_SAVE, "", ui.Save)
+	ui.newAction("SaveAs", gtk.STOCK_SAVE_AS, "", ui.SaveAs)
+	ui.newAction("CloseTab", "Close Tab", "<control>w", ui.CloseTab)
+	ui.newActionStock("Quit", gtk.STOCK_QUIT, "", ui.Quit)
+
+	ui.actionGroup.AddAction(gtk.NewAction("Edit", "Edit", "", ""))
+
+	ui.newActionStock("Find", gtk.STOCK_FIND, "", ui.ShowFindbar)
+	ui.newAction("FindNext", "Find Next", "F3", ui.FindNext)
+	ui.newAction("FindPrev", "Find Previous", "<shift>F3", ui.FindPrev)
+
+	ui.newActionStock("Replace", gtk.STOCK_FIND_AND_REPLACE, "<control>h", ui.ShowReplbar)
+	ui.newAction("ReplaceOne", "Replace One", "<control><shift>h", ui.ReplaceOne)
+	ui.newAction("ReplaceAll", "Replace All", "<control><alt>Return", ui.ReplaceAll)
+
+	ui.actionGroup.AddAction(gtk.NewAction("View", "View", "", ""))
+	ui.newToggleAction("Menubar", "Menubar", "<control>M", conf.UI.MenuBarVisible, ui.ToggleMenuBar)
+
+	ui.menubar = uiManager.GetWidget("/MenuBar")
+
+	return ui.menubar
 }
 
-func (ui *UI) addFileMenuActions(actionGroup *gtk.ActionGroup) {
-	actionGroup.AddAction(gtk.NewAction("FileMenu", "File", "", ""))
-
-	actionNewtab := gtk.NewAction("NewTab", "New Tab", "", "")
-	actionNewtab.Connect("activate", OnMenuNewTab)
-	actionGroup.AddActionWithAccel(actionNewtab, "<control>t")
-
-	actionClosetab := gtk.NewAction("CloseTab", "Close Tab", "", "")
-	actionClosetab.Connect("activate", OnMenuCloseTab)
-	actionGroup.AddActionWithAccel(actionClosetab, "<control>w")
-
-	actionFileopen := gtk.NewAction("FileOpen", "", "", gtk.STOCK_OPEN)
-	actionFileopen.Connect("activate", OnMenuFileOpen)
-	actionGroup.AddActionWithAccel(actionFileopen, "")
-
-	actionFilesave := gtk.NewAction("FileSave", "", "", gtk.STOCK_SAVE)
-	actionFilesave.Connect("activate", OnMenuFileSave)
-	actionGroup.AddActionWithAccel(actionFilesave, "")
-
-	actionFilesaveas := gtk.NewAction("FileSaveAs", "", "", gtk.STOCK_SAVE_AS)
-	actionFilesaveas.Connect("activate", OnMenuFileSaveAs)
-	actionGroup.AddActionWithAccel(actionFilesaveas, "")
-
-	actionFilequit := gtk.NewAction("FileQuit", "", "", gtk.STOCK_QUIT)
-	actionFilequit.Connect("activate", OnMenuFileQuit)
-	actionGroup.AddActionWithAccel(actionFilequit, "")
+func (ui *UI) newAction(dst, label, accel string, f func()) {
+	action := gtk.NewAction(dst, label, "", "")
+	action.Connect("activate", f)
+	ui.actionGroup.AddActionWithAccel(action, accel)
 }
 
-func (ui *UI) addEditMenuActions(actionGroup *gtk.ActionGroup) {
-	actionGroup.AddAction(gtk.NewAction("EditMenu", "Edit", "", ""))
-
-	actionFind := gtk.NewAction("Find", "Find...", "", gtk.STOCK_FIND)
-	actionFind.Connect("activate", OnMenuFind)
-	actionGroup.AddActionWithAccel(actionFind, "")
-
-	actionFindnext := gtk.NewAction("FindNext", "Find Next", "", "")
-	actionFindnext.Connect("activate", OnFindNext)
-	actionGroup.AddActionWithAccel(actionFindnext, "F3")
-
-	actionFindprev := gtk.NewAction("FindPrev", "Find Previus", "", "")
-	actionFindprev.Connect("activate", OnFindPrev)
-	actionGroup.AddActionWithAccel(actionFindprev, "<shift>F3")
-
-	actionRepl := gtk.NewAction("Replace", "Replace...", "", gtk.STOCK_FIND_AND_REPLACE)
-	actionRepl.Connect("activate", OnMenuReplace)
-	actionGroup.AddActionWithAccel(actionRepl, "<control>h")
-
-	actionReplOne := gtk.NewAction("ReplaceOne", "Replace One", "", "")
-	actionReplOne.Connect("activate", OnReplaceOne)
-	actionGroup.AddActionWithAccel(actionReplOne, "<control><shift>H")
-
-	actionReplAll := gtk.NewAction("ReplaceAll", "Replace All", "", "")
-	actionReplAll.Connect("activate", OnReplaceAll)
-	actionGroup.AddActionWithAccel(actionReplAll, "<control><alt>Return")
+func (ui *UI) newActionStock(dst, stock, accel string, f func()) {
+	action := gtk.NewAction(dst, "", "", stock)
+	action.Connect("activate", f)
+	ui.actionGroup.AddActionWithAccel(action, accel)
 }
 
-func exit() {
-	for _, t := range tabs {
-		t.File.Close()
-	}
-
-	gtk.MainQuit()
+func (ui *UI) newToggleAction(dst, label, accel string, state bool, f func()) {
+	action := gtk.NewToggleAction(dst, label, "", "")
+	action.SetActive(state)
+	action.Connect("activate", f)
+	ui.actionGroup.AddActionWithAccel(&action.Action, accel)
 }
 
 func (ui *UI) windowResize() {
@@ -200,32 +272,32 @@ func (ui *UI) createFooter() *gtk.Table {
 	labelReg.ModifyFG(gtk.STATE_ACTIVE, gdk.NewColor("red"))
 	ui.footer.regBtn = gtk.NewToggleButton()
 	ui.footer.regBtn.Add(labelReg)
-	ui.footer.regBtn.Connect("toggled", OnFindInput)
+	ui.footer.regBtn.Connect("toggled", ui.Find)
 
 	labelCase := gtk.NewLabel("A")
 	labelCase.ModifyFG(gtk.STATE_ACTIVE, gdk.NewColor("red"))
 	ui.footer.caseBtn = gtk.NewToggleButton()
 	ui.footer.caseBtn.Add(labelCase)
 	ui.footer.caseBtn.SetSizeRequest(20, 20)
-	ui.footer.caseBtn.Connect("toggled", OnFindInput)
+	ui.footer.caseBtn.Connect("toggled", ui.Find)
 
 	ui.footer.findEntry = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
-	ui.footer.findEntry.Connect("changed", OnFindInput)
+	ui.footer.findEntry.Connect("changed", ui.Find)
 
 	ui.footer.findNextBtn = gtk.NewButton()
 	ui.footer.findNextBtn.SetSizeRequest(20, 20)
 	ui.footer.findNextBtn.Add(gtk.NewArrow(gtk.ARROW_DOWN, gtk.SHADOW_NONE))
-	ui.footer.findNextBtn.Clicked(OnFindNext)
+	ui.footer.findNextBtn.Clicked(ui.FindNext)
 
 	ui.footer.findPrevBtn = gtk.NewButton()
 	ui.footer.findPrevBtn.SetSizeRequest(20, 20)
 	ui.footer.findPrevBtn.Add(gtk.NewArrow(gtk.ARROW_UP, gtk.SHADOW_NONE))
-	ui.footer.findPrevBtn.Clicked(OnFindPrev)
+	ui.footer.findPrevBtn.Clicked(ui.FindPrev)
 
 	ui.footer.closeBtn = gtk.NewButton()
 	ui.footer.closeBtn.SetSizeRequest(20, 20)
 	ui.footer.closeBtn.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
-	ui.footer.closeBtn.Clicked(ui.footerClose)
+	ui.footer.closeBtn.Clicked(ui.FooterClose)
 	ui.footer.closeBtn.AddAccelerator("activate", ui.accelGroup, gdk.KEY_Escape, 0, gtk.ACCEL_VISIBLE)
 
 	// replacebar
@@ -235,12 +307,12 @@ func (ui *UI) createFooter() *gtk.Table {
 	ui.footer.replBtn = gtk.NewButton()
 	ui.footer.replBtn.SetSizeRequest(20, 20)
 	ui.footer.replBtn.Add(gtk.NewImageFromIconName("text-changelog", gtk.ICON_SIZE_BUTTON))
-	ui.footer.replBtn.Clicked(OnReplaceOne)
+	ui.footer.replBtn.Clicked(ui.ReplaceOne)
 
 	ui.footer.replAllBtn = gtk.NewButton()
 	ui.footer.replAllBtn.SetSizeRequest(20, 20)
 	ui.footer.replAllBtn.Add(gtk.NewImageFromIconName("text-plain", gtk.ICON_SIZE_BUTTON))
-	ui.footer.replAllBtn.Clicked(OnReplaceAll)
+	ui.footer.replAllBtn.Clicked(ui.ReplaceAll)
 	// btnRepl.Clicked(OnMenuFind)
 
 	// pack to table
@@ -258,7 +330,7 @@ func (ui *UI) createFooter() *gtk.Table {
 	return ui.footer.table
 }
 
-func OnMenuFind() {
+func (ui *UI) ShowFindbar() {
 	ui.footer.table.SetVisible(true)
 	ui.footer.replEntry.SetVisible(false)
 	ui.footer.replBtn.SetVisible(false)
@@ -267,7 +339,7 @@ func OnMenuFind() {
 	ui.footer.findEntry.GrabFocus()
 }
 
-func OnMenuReplace() {
+func (ui *UI) ShowReplbar() {
 	ui.footer.table.SetVisible(true)
 	ui.footer.replEntry.SetVisible(true)
 	ui.footer.replBtn.SetVisible(true)
@@ -276,97 +348,6 @@ func OnMenuReplace() {
 	ui.footer.replEntry.GrabFocus()
 }
 
-func (ui *UI) footerClose() {
+func (ui *UI) FooterClose() {
 	ui.footer.table.SetVisible(false)
-}
-
-func OnFindInput() {
-	currentTab().Find()
-}
-
-func OnFindNext() {
-	currentTab().FindNext(true)
-}
-
-func OnFindPrev() {
-	currentTab().FindNext(false)
-}
-
-func OnReplaceOne() {
-	currentTab().Replace(false)
-}
-
-func OnReplaceAll() {
-	currentTab().Replace(true)
-}
-
-func OnMenuFileOpen() {
-	dialog := gtk.NewFileChooserDialog("open", ui.window, gtk.FILE_CHOOSER_ACTION_OPEN, "open file", gtk.RESPONSE_OK)
-
-	dialog.Run()
-	filename := dialog.GetFilename()
-	dialog.Destroy()
-
-	if len(filename) > 0 {
-		NewTab(filename)
-	}
-}
-
-func OnMenuFileSave() {
-	// n := notebook.GetCurrentPage()
-	t := currentTab()
-	if t == nil {
-		return
-	}
-	if t.File == nil {
-		filename := dialogSave()
-		if len(filename) == 0 {
-			return
-		}
-
-		t.Filename = filename
-		t.label.SetText(path.Base(filename))
-		t.label.SetTooltipText(filename)
-	}
-	t.Save()
-}
-
-func OnMenuFileSaveAs() {
-	t := currentTab()
-
-	filename := dialogSave()
-	if len(filename) == 0 {
-		return
-	}
-
-	t.Filename = filename
-	t.label.SetText(path.Base(filename))
-	t.label.SetTooltipText(filename)
-}
-
-func dialogSave() string {
-	dialog := gtk.NewFileChooserDialog("save", ui.window, gtk.FILE_CHOOSER_ACTION_SAVE, "save file", gtk.RESPONSE_OK)
-
-	dialog.Run()
-	filename := dialog.GetFilename()
-	dialog.Destroy()
-
-	return filename
-}
-
-func OnMenuNewTab() {
-	NewTab("")
-	fmt.Println(len(tabs))
-}
-
-func OnMenuCloseTab() {
-	closeCurrentTab()
-
-	if len(tabs) == 0 {
-		exit()
-	}
-}
-
-func OnMenuFileQuit() {
-	exit()
 }
