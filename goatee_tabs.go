@@ -46,7 +46,7 @@ type Tab struct {
 func NewTab(filename string) {
 	var newfile bool
 	var err error
-
+	log.Println(filename)
 	if tabsContains(filename) {
 		return
 	}
@@ -60,8 +60,7 @@ func NewTab(filename string) {
 	t := &Tab{}
 	t.Filename = filename
 
-	ct := currentTab()
-	if ct != nil && !newfile {
+	if ct := currentTab(); ct != nil && newfile {
 		closeCurrentTab()
 	}
 
