@@ -46,7 +46,7 @@ type Tab struct {
 func NewTab(filename string) {
 	var newfile bool
 	var err error
-	log.Println(filename)
+
 	if tabsContains(filename) {
 		return
 	}
@@ -104,37 +104,38 @@ func NewTab(filename string) {
 	if !newfile {
 		t.File, err = os.Open(filename)
 		if err != nil {
-			log.Println("failed open file", filename, err)
+			err := fmt.Errorf("failed open file  `%s`, %s", filename, err)
+			errorMessage(err)
+			log.Println(err)
 			return
 		}
 		defer t.File.Close()
 
 		stat, err := t.File.Stat()
 		if err != nil {
-			log.Println("failed get stat of file", filename, err)
+			err := fmt.Errorf("failed get stat of file  `%s`, %s", filename, err)
+			errorMessage(err)
+			log.Println(err)
+			return
 		}
 
-		// data := make([]byte, 128)
-		// n, err := t.File.Read(data)
-		// if err != nil && err != io.EOF {
-		// 	log.Println("failed read file", err)
-		// 	return
-		// }
-		// data = data[:n]
 		data, err := ioutil.ReadAll(t.File)
 		if err != nil {
-			log.Println("failed read file", filename, err)
+			err := fmt.Errorf("failed read file  `%s`, %s", filename, err)
+			errorMessage(err)
+			log.Println(err)
+			return
 		}
 
 		if stat.Size() > 0 {
 			t.Encoding = t.DetectEncoding(data)
 
-			log.Println(t.Encoding)
-
 			if t.Encoding != "utf-8" && t.Encoding != "binary" {
 				data, err = changeEncoding(data, "utf-8", t.Encoding)
 				if err != nil {
-					fmt.Println("failed change encoding", err)
+					err := fmt.Errorf("failed change encding, %s", err)
+					errorMessage(err)
+					log.Println(err)
 					return
 				}
 			}
@@ -193,7 +194,6 @@ func (t *Tab) DetectEncoding(data []byte) string {
 	}
 
 	return "utf-8"
-	// return
 }
 
 // func (t *Tab) Hex() string {
@@ -311,13 +311,18 @@ func (t *Tab) Save() {
 
 		data, err = hextobyte(t.GetText(false))
 		if err != nil {
-			log.Println("failed decode hex", err)
+			err := fmt.Errorf("failed decode hex, %s", err)
+			errorMessage(err)
+			log.Println(err)
 			return
 		}
 
 	} else if t.ReadOnly {
 
-		log.Println("sorry, file is open readonly mode")
+		// log.Println("sorry, file is open readonly mode")
+		err := fmt.Errorf("file %s is read only", t.Filename)
+		errorMessage(err)
+		log.Println(err)
 		return
 
 	} else if t.Encoding == "ASCII" || t.Encoding == "UTF-8" {
@@ -328,14 +333,18 @@ func (t *Tab) Save() {
 
 		data, err = changeEncoding([]byte(t.GetText(true)), t.Encoding, "utf-8")
 		if err != nil {
-			log.Println("failed restore encoding, save failed,", err)
+			err := fmt.Errorf("failed restore encoding, save failed,", err)
+			errorMessage(err)
+			log.Println(err)
 			return
 		}
 
 	}
 
 	if err := ioutil.WriteFile(t.Filename, data, 0644); err != nil {
-		log.Println("failed save file,", err)
+		err := fmt.Errorf("failed save file `%s`, %s", t.Filename, err)
+		errorMessage(err)
+		log.Println(err)
 		return
 	}
 
@@ -527,7 +536,9 @@ func bytetohex(r io.Reader) string {
 	for {
 		n, err := r.Read(line)
 		if err != nil && err != io.EOF {
-			log.Println("failed read file", err)
+			err := fmt.Errorf("failed read file %s", err)
+			errorMessage(err)
+			log.Println(err)
 			break
 		}
 

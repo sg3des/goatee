@@ -102,3 +102,10 @@ func currentTab() *Tab {
 	}
 	return tabs[n]
 }
+
+func errorMessage(err error) {
+	m := gtk.NewMessageDialog(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_CLOSE, err.Error())
+	m.Run()
+	m.Destroy()
+
+}
