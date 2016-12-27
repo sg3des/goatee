@@ -70,6 +70,8 @@ func NewTab(filename string) {
 
 	t.sourcebuffer = gsv.NewSourceBuffer()
 
+	t.sourcebuffer.SetStyleScheme(gsv.NewSourceStyleSchemeManager().GetScheme("classic"))
+
 	t.sourceview = gsv.NewSourceViewWithBuffer(t.sourcebuffer)
 	t.sourceview.SetHighlightCurrentLine(conf.TextView.LineHightlight)
 	t.sourceview.ModifyFontEasy(conf.TextView.Font)

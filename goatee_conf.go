@@ -16,11 +16,12 @@ var conf struct {
 	}
 	TextView struct {
 		Font           string
-		LineHightlight bool `toml:"line-hightlight"`
-		LineNumbers    bool `toml:"line-numbers"`
-		WordWrap       bool `toml:"word-wrap"`
-		IndentSpace    bool `toml:"indent-space"`
-		IndentWidth    int  `toml:"indent-width"`
+		LineHightlight bool   `toml:"line-hightlight"`
+		LineNumbers    bool   `toml:"line-numbers"`
+		WordWrap       bool   `toml:"word-wrap"`
+		IndentSpace    bool   `toml:"indent-space"`
+		IndentWidth    int    `toml:"indent-width"`
+		StyleScheme    string `toml:"style-scheme"`
 	}
 	Tabs struct {
 		Homogenous bool

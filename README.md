@@ -14,7 +14,7 @@
 # Requirements
  
  * gtk2
- * gtksourceview2 
+ * gtksourceview2
 
 
 # Knownbugs
