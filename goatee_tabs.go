@@ -335,7 +335,7 @@ func (t *Tab) Save() {
 
 		data, err = changeEncoding([]byte(t.GetText(true)), t.Encoding, "utf-8")
 		if err != nil {
-			err := fmt.Errorf("failed restore encoding, save failed,", err)
+			err := fmt.Errorf("failed restore encoding, save failed, %s", err)
 			errorMessage(err)
 			log.Println(err)
 			return
@@ -396,8 +396,9 @@ func (t *Tab) Find() {
 	reg, err := regexp.Compile(expr)
 	if err != nil {
 		log.Println("invalid search query,", err)
+		return
 	}
-	log.Println(expr)
+	// log.Println(expr)
 	t.findindex = reg.FindAllStringIndex(text, conf.Search.MaxItems)
 
 	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
@@ -457,7 +458,7 @@ func (t *Tab) Highlight(index []int, current bool) {
 }
 
 func (t *Tab) Scroll(iter gtk.TextIter) {
-	log.Println(iter.GetOffset())
+	// log.Println(iter.GetOffset())
 	t.sourceview.ScrollToIter(&iter, 0, false, 0, 0)
 }
 
