@@ -30,6 +30,7 @@ type Tab struct {
 	Encoding string
 	Language string
 	ReadOnly bool
+	Empty    bool
 
 	//color        *gdk.Color
 	swin         *gtk.ScrolledWindow
@@ -44,23 +45,21 @@ type Tab struct {
 }
 
 func NewTab(filename string) {
-	var newfile bool
-	var err error
-
 	if tabsContains(filename) {
 		return
 	}
 
+	t := &Tab{}
+
 	if filename == "" {
 		filename = fmt.Sprintf("new%d", newtabiter)
 		newtabiter++
-		newfile = true
+		t.Empty = true
 	}
 
-	t := &Tab{}
 	t.Filename = filename
 
-	if ct := currentTab(); ct != nil && newfile {
+	if ct := currentTab(); ct != nil && ct.Empty && !t.Empty {
 		closeCurrentTab()
 	}
 
@@ -79,18 +78,12 @@ func NewTab(filename string) {
 
 	t.DragAndDrop()
 
-	// var start gtk.TextIter
-	// t.sourcebuffer.GetStartIter(&start)
-	// t.sourcebuffer.BeginNotUndoableAction()
-	// t.sourcebuffer.Insert(&start, string(t.Data))
-	// t.sourcebuffer.EndNotUndoableAction()
-
 	t.swin.Add(t.sourceview)
 
 	t.label = gtk.NewLabel(path.Base(filename))
 	t.label.SetTooltipText(filename)
 
-	if newfile {
+	if t.Empty {
 		t.SetTabFGColor(conf.Tabs.FGNew)
 	} else {
 		t.SetTabFGColor(conf.Tabs.FGNormal)
@@ -101,64 +94,19 @@ func NewTab(filename string) {
 	ui.notebook.SetCurrentPage(n)
 	t.sourceview.GrabFocus()
 
-	// text
-	var text string
-	if !newfile {
-		t.File, err = os.Open(filename)
+	if !t.Empty {
+		text, err := t.ReadFile(filename)
 		if err != nil {
-			err := fmt.Errorf("failed open file  `%s`, %s", filename, err)
 			errorMessage(err)
 			log.Println(err)
 			return
 		}
-		defer t.File.Close()
-
-		stat, err := t.File.Stat()
-		if err != nil {
-			err := fmt.Errorf("failed get stat of file  `%s`, %s", filename, err)
-			errorMessage(err)
-			log.Println(err)
-			return
-		}
-
-		data, err := ioutil.ReadAll(t.File)
-		if err != nil {
-			err := fmt.Errorf("failed read file  `%s`, %s", filename, err)
-			errorMessage(err)
-			log.Println(err)
-			return
-		}
-
-		if stat.Size() > 0 {
-			t.Encoding = t.DetectEncoding(data)
-
-			if t.Encoding != "utf-8" && t.Encoding != "binary" {
-				data, err = changeEncoding(data, "utf-8", t.Encoding)
-				if err != nil {
-					err := fmt.Errorf("failed change encding, %s", err)
-					errorMessage(err)
-					log.Println(err)
-					return
-				}
-			}
-
-			if t.Encoding != "binary" {
-				t.Language = t.DetectLanguage(data)
-				text = string(data)
-			} else {
-				text = bytetohex(bytes.NewReader(data))
-				if issetLanguage("hex") {
-					t.Language = "hex"
-				}
-			}
-		}
+		t.sourcebuffer.BeginNotUndoableAction()
+		t.sourcebuffer.SetText(text)
+		t.sourcebuffer.EndNotUndoableAction()
 	}
-	t.sourcebuffer.BeginNotUndoableAction()
-	t.sourcebuffer.SetText(text)
-	t.sourcebuffer.EndNotUndoableAction()
 
 	if issetLanguage(t.Language) {
-		// t.sourcebuffer = gsv.NewSourceBufferWithLanguage()
 		t.sourcebuffer.SetLanguage(gsv.SourceLanguageManagerGetDefault().GetLanguage(t.Language))
 	}
 
@@ -176,8 +124,57 @@ func NewTab(filename string) {
 	tabs = append(tabs, t)
 }
 
-func (t *Tab) OnScroll() {
-	log.Println("OnScroll")
+func (t *Tab) ReadFile(filename string) (string, error) {
+	var err error
+	t.File, err = os.Open(filename)
+	if err != nil {
+		err := fmt.Errorf("failed open file  `%s`, %s", filename, err)
+		// errorMessage(err)
+		// log.Println(err)
+		return "", err
+	}
+	defer t.File.Close()
+
+	stat, err := t.File.Stat()
+	if err != nil {
+		err := fmt.Errorf("failed get stat of file  `%s`, %s", filename, err)
+		// errorMessage(err)
+		// log.Println(err)
+		return "", err
+	}
+
+	data, err := ioutil.ReadAll(t.File)
+	if err != nil {
+		err := fmt.Errorf("failed read file  `%s`, %s", filename, err)
+		// errorMessage(err)
+		// log.Println(err)
+		return "", err
+	}
+
+	if stat.Size() > 0 {
+		t.Encoding = t.DetectEncoding(data)
+
+		if t.Encoding != "utf-8" && t.Encoding != "binary" {
+			data, err = changeEncoding(data, "utf-8", t.Encoding)
+			if err != nil {
+				err := fmt.Errorf("failed change encding, %s", err)
+				// errorMessage(err)
+				// log.Println(err)
+				return "", err
+			}
+		}
+
+		if t.Encoding != "binary" {
+			t.Language = t.DetectLanguage(data)
+			return string(data), nil
+		}
+
+		if issetLanguage("hex") {
+			t.Language = "hex"
+		}
+		return bytetohex(bytes.NewReader(data)), nil
+	}
+	return "", nil
 }
 
 func (t *Tab) DetectEncoding(data []byte) string {
@@ -292,6 +289,7 @@ func (t *Tab) DnDHandler(ctx *glib.CallbackContext) {
 func (t *Tab) onchange() {
 	// t.Data = t.GetText()
 	t.SetTabFGColor(conf.Tabs.FGModified)
+	t.Empty = false
 }
 
 func (t *Tab) SetTabFGColor(col [3]int) {

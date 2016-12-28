@@ -62,15 +62,12 @@ func (ui *UI) NewTab() {
 	NewTab("")
 }
 func (ui *UI) Open() {
-	dialog := gtk.NewFileChooserDialog("open", ui.window, gtk.FILE_CHOOSER_ACTION_OPEN, "open file", gtk.RESPONSE_OK)
+	dialog := gtk.NewFileChooserDialog("Open File", ui.window, gtk.FILE_CHOOSER_ACTION_OPEN, gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_ACCEPT)
 
-	dialog.Run()
-	filename := dialog.GetFilename()
-	dialog.Destroy()
-
-	if len(filename) > 0 {
-		NewTab(filename)
+	if dialog.Run() == gtk.RESPONSE_ACCEPT {
+		NewTab(dialog.GetFilename())
 	}
+	dialog.Destroy()
 }
 func (ui *UI) Save() {
 	t := currentTab()
@@ -143,10 +140,13 @@ func (ui *UI) ToggleStatusBar() {
 }
 
 func dialogSave() string {
-	dialog := gtk.NewFileChooserDialog("save", ui.window, gtk.FILE_CHOOSER_ACTION_SAVE, "save file", gtk.RESPONSE_OK)
+	dialog := gtk.NewFileChooserDialog("Save File", ui.window, gtk.FILE_CHOOSER_ACTION_SAVE, gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_SAVE, gtk.RESPONSE_ACCEPT)
 
-	dialog.Run()
-	filename := dialog.GetFilename()
+	var filename string
+	if dialog.Run() == gtk.RESPONSE_ACCEPT {
+		filename = dialog.GetFilename()
+	}
+
 	dialog.Destroy()
 
 	return filename
