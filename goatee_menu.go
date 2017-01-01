@@ -40,6 +40,7 @@ func CreateUI() *UI {
 	ui := &UI{}
 	ui.window = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	ui.window.SetDefaultSize(600, 300)
+	ui.window.SetSizeRequest(100, 100)
 
 	ui.vbox = gtk.NewVBox(false, 0)
 	ui.vbox.PackStart(ui.createUIManager(), false, false, 0)
