@@ -13,11 +13,16 @@
 
 # Screenshots
 
-text file
+
+**text file:**
+
 ![text](screenshots/text.png)
 
-binary file with hidden menu
+
+**binary file with hidden menu:**
+
 ![binary](screenshots/binary.png)
+
 
 
 # Requirements
