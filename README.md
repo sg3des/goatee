@@ -9,7 +9,16 @@
  * multiple homogeneous(*full width*) Tabs
  * auto detect charset and binary files
  * smart detect language(syntax) for text files
- * hex editor for binary files with search and replace
+ * hex editor for binary files with search and replacet
+
+# Screenshots
+
+text file
+![text](screenshots/text.png)
+
+binary file with hidden menu
+![binary](screenshots/binary.png)
+
 
 # Requirements
  
