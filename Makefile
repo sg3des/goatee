@@ -10,7 +10,7 @@ build:
 # 	go install
 
 install: 
-	go install
-	sudo cp hex.lang /usr/share/gtksourceview-2.0/language-specs/
-	# cp ./goatee /usr/bin/
+	# go install
+	# sudo cp hex.lang /usr/share/gtksourceview-2.0/language-specs/
+	cp ./goatee /usr/bin/
 

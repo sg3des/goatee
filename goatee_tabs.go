@@ -99,6 +99,7 @@ func (ui *UI) NewTab(filename string) {
 		t.closeBtn.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
 		t.closeBtn.SetRelief(gtk.RELIEF_NONE)
 		t.closeBtn.SetSizeRequest(conf.Tabs.Height, conf.Tabs.Height)
+		t.closeBtn.Clicked(t.Close)
 		t.tabbox.PackEnd(t.closeBtn, false, false, 0)
 	}
 
@@ -139,13 +140,16 @@ func (ui *UI) NewTab(filename string) {
 	ui.tabs = append(ui.tabs, t)
 }
 
+func (t *Tab) Close() {
+	n := ui.notebook.PageNum(t.swin)
+	ui.CloseTab(n)
+}
+
 func (t *Tab) ReadFile(filename string) (string, error) {
 	var err error
 	t.File, err = os.Open(filename)
 	if err != nil {
 		err := fmt.Errorf("failed open file  `%s`, %s", filename, err)
-		// errorMessage(err)
-		// log.Println(err)
 		return "", err
 	}
 	defer t.File.Close()
@@ -153,16 +157,12 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 	stat, err := t.File.Stat()
 	if err != nil {
 		err := fmt.Errorf("failed get stat of file  `%s`, %s", filename, err)
-		// errorMessage(err)
-		// log.Println(err)
 		return "", err
 	}
 
 	data, err := ioutil.ReadAll(t.File)
 	if err != nil {
 		err := fmt.Errorf("failed read file  `%s`, %s", filename, err)
-		// errorMessage(err)
-		// log.Println(err)
 		return "", err
 	}
 
@@ -173,8 +173,6 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 			data, err = changeEncoding(data, "utf-8", t.Encoding)
 			if err != nil {
 				err := fmt.Errorf("failed change encding, %s", err)
-				// errorMessage(err)
-				// log.Println(err)
 				return "", err
 			}
 		}
