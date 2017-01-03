@@ -32,11 +32,13 @@ type Tab struct {
 	ReadOnly bool
 	Empty    bool
 
-	//color        *gdk.Color
+	tabbox   *gtk.HBox
+	label    *gtk.Label
+	closeBtn *gtk.Button
+
 	swin         *gtk.ScrolledWindow
-	label        *gtk.Label
-	sourcebuffer *gsv.SourceBuffer
 	sourceview   *gsv.SourceView
+	sourcebuffer *gsv.SourceBuffer
 
 	findindex        [][]int
 	findindexCurrent int
@@ -44,8 +46,8 @@ type Tab struct {
 	tagfindCurrent   *gtk.TextTag
 }
 
-func NewTab(filename string) {
-	if tabsContains(filename) {
+func (ui *UI) NewTab(filename string) {
+	if ui.TabsContains(filename) {
 		return
 	}
 
@@ -59,8 +61,8 @@ func NewTab(filename string) {
 
 	t.Filename = filename
 
-	if ct := currentTab(); ct != nil && ct.Empty && !t.Empty {
-		closeCurrentTab()
+	if ct := ui.GetCurrentTab(); ct != nil && ct.Empty && !t.Empty {
+		ui.CloseCurrentTab()
 	}
 
 	t.swin = gtk.NewScrolledWindow(nil, nil)
@@ -89,7 +91,20 @@ func NewTab(filename string) {
 		t.SetTabFGColor(conf.Tabs.FGNormal)
 	}
 
-	n := ui.notebook.AppendPage(t.swin, t.label)
+	t.tabbox = gtk.NewHBox(false, 0)
+	t.tabbox.PackStart(t.label, true, true, 0)
+
+	if conf.Tabs.CloseBtns {
+		t.closeBtn = gtk.NewButton()
+		t.closeBtn.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
+		t.closeBtn.SetRelief(gtk.RELIEF_NONE)
+		t.closeBtn.SetSizeRequest(conf.Tabs.Height, conf.Tabs.Height)
+		t.tabbox.PackEnd(t.closeBtn, false, false, 0)
+	}
+
+	t.tabbox.ShowAll()
+
+	n := ui.notebook.AppendPage(t.swin, t.tabbox)
 	ui.notebook.ShowAll()
 	ui.notebook.SetCurrentPage(n)
 	t.sourceview.GrabFocus()
@@ -121,7 +136,7 @@ func NewTab(filename string) {
 
 	t.sourcebuffer.Connect("changed", t.onchange)
 
-	tabs = append(tabs, t)
+	ui.tabs = append(ui.tabs, t)
 }
 
 func (t *Tab) ReadFile(filename string) (string, error) {
@@ -281,7 +296,7 @@ func (t *Tab) DnDHandler(ctx *glib.CallbackContext) {
 				filename = path.Join(gvfsPath, fmt.Sprintf("%s:host=%s", u.Scheme, u.Host), u.Path)
 			}
 
-			NewTab(filename)
+			ui.NewTab(filename)
 		}
 	}
 }

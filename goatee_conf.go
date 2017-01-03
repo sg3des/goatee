@@ -8,7 +8,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-//conf if structure contains configuration
+//conf structure contains configuration
 var conf struct {
 	UI struct {
 		MenuBarVisible   bool `toml:"menubar-visible"`
@@ -25,6 +25,8 @@ var conf struct {
 	}
 	Tabs struct {
 		Homogenous bool
+		CloseBtns  bool `toml:"close-buttons"`
+		Height     int
 		FGNormal   [3]int `toml:"fg-normal"`
 		FGModified [3]int `toml:"fg-modified"`
 		FGNew      [3]int `toml:"fg-new"`
@@ -51,6 +53,8 @@ func ReadConf() {
 	conf.TextView.IndentWidth = 2
 
 	conf.Tabs.Homogenous = true
+	conf.Tabs.CloseBtns = true
+	conf.Tabs.Height = 16
 	conf.Tabs.FGNormal = [3]int{200, 200, 200}
 	conf.Tabs.FGModified = [3]int{220, 20, 20}
 	conf.Tabs.FGNew = [3]int{250, 200, 10}

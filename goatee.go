@@ -17,11 +17,7 @@ var (
 
 	gvfsPath = "/run/user/%s/gvfs/"
 
-	width  int
-	height int
-
 	newtabiter int
-	tabs       []*Tab
 
 	languages = gsv.SourceLanguageManagerGetDefault().GetLanguageIds()
 )
@@ -36,32 +32,23 @@ func init() {
 
 	user, _ := user.Current()
 	gvfsPath = fmt.Sprintf(gvfsPath, user.Uid)
+
 	ReadConf()
+
+	if len(args.Files) == 0 {
+		args.Files = append(args.Files, "")
+	}
 }
 
 func main() {
 	gtk.Init(nil)
 	ui = CreateUI()
 
-	if len(args.Files) > 0 {
-		for _, filename := range args.Files {
-			NewTab(filename)
-		}
-	} else {
-		NewTab("")
+	for _, filename := range args.Files {
+		ui.NewTab(filename)
 	}
 
 	gtk.Main()
-}
-
-func tabsContains(filename string) bool {
-	for n, t := range tabs {
-		if t.Filename == filename {
-			ui.notebook.SetCurrentPage(n)
-			return true
-		}
-	}
-	return false
 }
 
 func issetLanguage(lang string) bool {
@@ -88,24 +75,8 @@ func changeEncoding(data []byte, to, from string) ([]byte, error) {
 	return out, nil
 }
 
-func closeCurrentTab() {
-	n := ui.notebook.GetCurrentPage()
-	ui.notebook.RemovePage(tabs[n].swin, n)
-	tabs[n].File.Close()
-	tabs = append(tabs[:n], tabs[n+1:]...)
-}
-
-func currentTab() *Tab {
-	n := ui.notebook.GetCurrentPage()
-	if n < 0 {
-		return nil
-	}
-	return tabs[n]
-}
-
 func errorMessage(err error) {
 	m := gtk.NewMessageDialogWithMarkup(nil, gtk.DIALOG_MODAL, gtk.MESSAGE_ERROR, gtk.BUTTONS_CLOSE, err.Error())
 	m.Run()
 	m.Destroy()
-
 }
