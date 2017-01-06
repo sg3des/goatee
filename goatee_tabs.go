@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/hex"
 	"fmt"
@@ -230,6 +231,10 @@ func (t *Tab) DetectLanguage(data []byte) string {
 		return ext
 	}
 
+	if strings.HasSuffix(t.Filename, "rc") {
+		return "sh"
+	}
+
 	size := 64
 	if size > len(data) {
 		size = len(data)
@@ -250,10 +255,26 @@ func (t *Tab) DetectLanguage(data []byte) string {
 		return maybexml
 	}
 
-	// log.Println(strings.LastIndex(t.Filename, "rc"))
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		if line[0] == '#' {
+			if issetLanguage("yaml") {
+				return "yaml"
+			}
+			if issetLanguage("desktop") {
+				return "desktop"
+			}
+		}
 
-	if strings.HasSuffix(t.Filename, "rc") {
-		return "sh"
+		if line[0] == ';' {
+			if issetLanguage("ini") {
+				return "ini"
+			}
+		}
 	}
 
 	return strings.ToLower(gsv.NewSourceLanguageManager().GuessLanguage(t.Filename, "").GetName())
