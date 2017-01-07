@@ -9,7 +9,7 @@
  * multiple homogeneous(*full width*) Tabs
  * auto detect charset and binary files
  * smart detect language(syntax) for text files
- * hex editor for binary files with search and replacet
+ * hex editor for binary files with search and replace
 
 # Screenshots
 
