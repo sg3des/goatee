@@ -276,6 +276,11 @@ func (t *Tab) DetectLanguage(data []byte) string {
 			}
 		}
 	}
+	if ext == ".conf" || ext == ".cfg" {
+		if issetLanguage("ini") {
+			return "ini"
+		}
+	}
 
 	return strings.ToLower(gsv.NewSourceLanguageManager().GuessLanguage(t.Filename, "").GetName())
 }
