@@ -75,7 +75,7 @@ func (ui *UI) Open() {
 func (ui *UI) Save() {
 	t := ui.GetCurrentTab()
 
-	if t.File == nil {
+	if len(t.Filename) == 0 {
 		filename := dialogSave()
 		if len(filename) == 0 {
 			return

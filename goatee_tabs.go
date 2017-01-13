@@ -31,7 +31,7 @@ type Tab struct {
 	Encoding string
 	Language string
 	ReadOnly bool
-	Empty    bool
+	// Empty    bool
 
 	tabbox   *gtk.HBox
 	label    *gtk.Label
@@ -57,12 +57,11 @@ func (ui *UI) NewTab(filename string) {
 	if filename == "" {
 		filename = fmt.Sprintf("new%d", newtabiter)
 		newtabiter++
-		t.Empty = true
+	} else {
+		t.Filename = filename
 	}
 
-	t.Filename = filename
-
-	if ct := ui.GetCurrentTab(); ct != nil && ct.Empty && !t.Empty {
+	if ct := ui.GetCurrentTab(); ct != nil && len(ct.Filename) == 0 && len(t.Filename) > 0 {
 		ui.CloseCurrentTab()
 	}
 
@@ -86,7 +85,7 @@ func (ui *UI) NewTab(filename string) {
 	t.label = gtk.NewLabel(path.Base(filename))
 	t.label.SetTooltipText(filename)
 
-	if t.Empty {
+	if len(t.Filename) == 0 {
 		t.SetTabFGColor(conf.Tabs.FGNew)
 	} else {
 		t.SetTabFGColor(conf.Tabs.FGNormal)
@@ -111,13 +110,15 @@ func (ui *UI) NewTab(filename string) {
 	ui.notebook.SetCurrentPage(n)
 	t.sourceview.GrabFocus()
 
-	if !t.Empty {
-		text, err := t.ReadFile(filename)
-		if err != nil {
-			errorMessage(err)
-			log.Println(err)
-			return
-		}
+	if len(t.Filename) > 0 {
+		text, _ := t.ReadFile(filename)
+
+		// if err != nil {
+
+		// errorMessage(err)
+		// log.Println(err)
+		// return
+		// }
 		t.sourcebuffer.BeginNotUndoableAction()
 		t.sourcebuffer.SetText(text)
 		t.sourcebuffer.EndNotUndoableAction()
@@ -328,7 +329,7 @@ func (t *Tab) DnDHandler(ctx *glib.CallbackContext) {
 func (t *Tab) onchange() {
 	// t.Data = t.GetText()
 	t.SetTabFGColor(conf.Tabs.FGModified)
-	t.Empty = false
+	// t.Empty = false
 }
 
 func (t *Tab) SetTabFGColor(col [3]int) {
