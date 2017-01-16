@@ -61,8 +61,12 @@ func (ui *UI) NewTab(filename string) {
 		t.Filename = filename
 	}
 
-	if ct := ui.GetCurrentTab(); ct != nil && len(ct.Filename) == 0 && len(t.Filename) > 0 {
-		ui.CloseCurrentTab()
+	if len(t.Filename) > 0 {
+		ct := ui.GetCurrentTab()
+		if ct != nil && len(ct.Filename) == 0 {
+			ct.Close()
+			// ui.CloseCurrentTab()
+		}
 	}
 
 	t.swin = gtk.NewScrolledWindow(nil, nil)
@@ -144,7 +148,12 @@ func (ui *UI) NewTab(filename string) {
 
 func (t *Tab) Close() {
 	n := ui.notebook.PageNum(t.swin)
-	ui.CloseTab(n)
+
+	ui.notebook.RemovePage(ui.tabs[n].swin, n)
+	ui.tabs[n].File.Close()
+	ui.tabs = append(ui.tabs[:n], ui.tabs[n+1:]...)
+
+	// ui.CloseTab(n)
 }
 
 func (t *Tab) ReadFile(filename string) (string, error) {

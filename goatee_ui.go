@@ -286,9 +286,7 @@ func (ui *UI) CloseCurrentTab() {
 }
 
 func (ui *UI) CloseTab(n int) {
-	ui.notebook.RemovePage(ui.tabs[n].swin, n)
-	ui.tabs[n].File.Close()
-	ui.tabs = append(ui.tabs[:n], ui.tabs[n+1:]...)
+	ui.tabs[n].Close()
 
 	if len(ui.tabs) == 0 {
 		gtk.MainQuit()
