@@ -204,7 +204,7 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	ui.newAction("NewTab", "New Tab", "<control>t", func() { ui.NewTab("") })
 	ui.newActionStock("Open", gtk.STOCK_OPEN, "", ui.Open)
 	ui.newActionStock("Save", gtk.STOCK_SAVE, "", ui.Save)
-	ui.newActionStock("SaveAs", gtk.STOCK_SAVE_AS, "", ui.SaveAs)
+	ui.newActionStock("SaveAs", gtk.STOCK_SAVE_AS, "<control><shift>s", ui.SaveAs)
 	ui.newAction("CloseTab", "Close Tab", "<control>w", ui.CloseCurrentTab)
 	ui.newActionStock("Quit", gtk.STOCK_QUIT, "", ui.Quit)
 
