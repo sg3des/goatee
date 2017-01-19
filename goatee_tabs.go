@@ -48,7 +48,7 @@ type Tab struct {
 }
 
 func (ui *UI) NewTab(filename string) {
-	if ui.TabsContains(filename) {
+	if len(filename) > 0 && ui.TabsContains(filename) {
 		return
 	}
 
@@ -409,12 +409,20 @@ func (t *Tab) GetText(hiddenChars bool) string {
 	return t.sourcebuffer.GetText(&start, &end, hiddenChars)
 }
 
-func (t *Tab) Find() {
-	if t.tagfind != nil {
-		tabletag := t.sourcebuffer.GetTagTable()
-		tabletag.Remove(t.tagfind)
-		tabletag.Remove(t.tagfindCurrent)
+func (t *Tab) ClearTags() {
+	tabletag := t.sourcebuffer.GetTagTable()
+
+	if tag := tabletag.Lookup("find"); tag != nil {
+		tabletag.Remove(tag)
 	}
+
+	if tag := tabletag.Lookup("findCurr"); tag != nil {
+		tabletag.Remove(tag)
+	}
+}
+
+func (t *Tab) Find() {
+	t.ClearTags()
 
 	find := ui.footer.findEntry.GetText()
 	if len(find) == 0 {
@@ -503,6 +511,13 @@ func (t *Tab) Highlight(index []int, current bool) {
 		t.sourcebuffer.ApplyTag(t.tagfind, &start, &end)
 	}
 }
+
+// func (t *Tab) RemoveTag(name string) {
+// 	tagtable := t.sourcebuffer.GetTagTable()
+// 	if tag := tagtable.Lookup(name); tag != nil {
+// 		tagtable.Remove(tag)
+// 	}
+// }
 
 func (t *Tab) Scroll(iter gtk.TextIter) {
 	// log.Println(iter.GetOffset())

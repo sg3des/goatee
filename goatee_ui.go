@@ -386,5 +386,8 @@ func (ui *UI) ShowReplbar() {
 }
 
 func (ui *UI) FooterClose() {
+	for _, t := range ui.tabs {
+		t.ClearTags()
+	}
 	ui.footer.table.SetVisible(false)
 }
