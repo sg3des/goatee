@@ -70,7 +70,7 @@ func changeEncoding(data []byte, to, from string) ([]byte, error) {
 	var outbuf = make([]byte, len(data))
 	out, _, err := cd.Conv(data, outbuf)
 	if err != nil {
-		return nil, fmt.Errorf("failed convert encoding, %s", err)
+		return nil, fmt.Errorf("failed change encoding from `%s`, %s", from, err)
 	}
 	return out, nil
 }

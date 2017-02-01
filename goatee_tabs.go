@@ -109,13 +109,13 @@ func (ui *UI) NewTab(filename string) {
 
 	t.tabbox.ShowAll()
 
-	n := ui.notebook.AppendPage(t.swin, t.tabbox)
-	ui.notebook.ShowAll()
-	ui.notebook.SetCurrentPage(n)
-	t.sourceview.GrabFocus()
-
 	if len(t.Filename) > 0 {
-		text, _ := t.ReadFile(filename)
+		text, err := t.ReadFile(filename)
+		if err != nil {
+			errorMessage(err)
+			log.Println(err)
+			return
+		}
 
 		// if err != nil {
 
@@ -144,6 +144,11 @@ func (ui *UI) NewTab(filename string) {
 	t.sourcebuffer.Connect("changed", t.onchange)
 
 	ui.tabs = append(ui.tabs, t)
+
+	n := ui.notebook.AppendPage(t.swin, t.tabbox)
+	ui.notebook.ShowAll()
+	ui.notebook.SetCurrentPage(n)
+	t.sourceview.GrabFocus()
 }
 
 func (t *Tab) Close() {
@@ -179,13 +184,16 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 
 	if stat.Size() > 0 {
 		t.Encoding = t.DetectEncoding(data)
-
 		if t.Encoding != CHARSET_UTF8 && t.Encoding != CHARSET_BINARY {
-			data, err = changeEncoding(data, CHARSET_UTF8, t.Encoding)
+			log.Println("change encoding")
+			newdata, err := changeEncoding(data, CHARSET_UTF8, t.Encoding)
 			if err != nil {
-				err := fmt.Errorf("failed change encding, %s", err)
-				return "", err
+				// errorMessage(err)
+				t.Encoding = CHARSET_BINARY
+			} else {
+				data = newdata
 			}
+
 		}
 
 		if t.Encoding != CHARSET_BINARY {
@@ -196,6 +204,7 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 		if issetLanguage("hex") {
 			t.Language = "hex"
 		}
+
 		return bytetohex(bytes.NewReader(data)), nil
 	}
 	return "", nil
@@ -210,7 +219,6 @@ func (t *Tab) DetectEncoding(data []byte) string {
 	}
 
 	r, err := chardet.NewHtmlDetector().DetectBest(data)
-
 	if err != nil || r.Confidence < 30 {
 		return CHARSET_BINARY
 	}
