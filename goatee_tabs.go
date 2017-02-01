@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -20,7 +21,6 @@ import (
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
-	"github.com/saintfish/chardet"
 
 	gsv "github.com/mattn/go-gtk/gtksourceview"
 )
@@ -207,13 +207,23 @@ func (t *Tab) DetectEncoding(data []byte) string {
 		return CHARSET_UTF8
 	}
 
-	r, err := chardet.NewTextDetector().DetectBest(data)
-	log.Println(r)
-	if err != nil || r.Confidence < 30 {
+	// contentType :=
+	contentType := strings.Split(http.DetectContentType(data), ";")
+	if len(contentType) != 2 {
 		return CHARSET_BINARY
 	}
 
-	return r.Charset
+	log.Println(contentType)
+
+	return contentType[1]
+
+	// r, err := chardet.NewTextDetector().DetectBest(data)
+	// log.Println(r)
+	// if err != nil || r.Confidence < 30 {
+	// 	return CHARSET_BINARY
+	// }
+
+	// return r.Charset
 }
 
 // func (t *Tab) Hex() string {
