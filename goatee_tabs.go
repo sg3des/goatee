@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -21,6 +22,7 @@ import (
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
+	"github.com/saintfish/chardet"
 
 	gsv "github.com/mattn/go-gtk/gtksourceview"
 )
@@ -173,9 +175,14 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 	}
 
 	if len(data) > 0 {
-		t.Encoding = t.DetectEncoding(data)
+		t.Encoding, err = t.DetectEncoding(data)
+		if err != nil {
+			t.Encoding = CHARSET_BINARY
+		}
+
 		if t.Encoding != CHARSET_UTF8 && t.Encoding != CHARSET_BINARY {
 			newdata, err := changeEncoding(data, CHARSET_UTF8, t.Encoding)
+			// log.Println(t.Encoding, err)
 			if err != nil {
 				errorMessage(err)
 				t.Encoding = CHARSET_BINARY
@@ -202,20 +209,28 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 const CHARSET_BINARY = "binary"
 const CHARSET_UTF8 = "utf-8"
 
-func (t *Tab) DetectEncoding(data []byte) string {
-	if utf8.Valid(data) {
-		return CHARSET_UTF8
-	}
-
-	// contentType :=
+func (t *Tab) DetectEncoding(data []byte) (string, error) {
 	contentType := strings.Split(http.DetectContentType(data), ";")
 	if len(contentType) != 2 {
-		return CHARSET_BINARY
+		return "", errors.New("failed split content type")
 	}
 
-	log.Println(contentType)
+	charset := strings.Split(contentType[1], "=")
+	if len(charset) != 2 {
+		return "", errors.New("failed split charset")
+	}
 
-	return contentType[1]
+	if charset[1] == CHARSET_UTF8 && !utf8.Valid(data) {
+		r, err := chardet.NewTextDetector().DetectBest(data)
+		log.Println(r)
+		if err != nil || r.Confidence < 30 {
+			return "", errors.New("failed detect charset")
+		}
+		return r.Charset, nil
+
+	}
+
+	return charset[1], nil
 
 	// r, err := chardet.NewTextDetector().DetectBest(data)
 	// log.Println(r)
