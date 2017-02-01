@@ -179,7 +179,6 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 
 	if stat.Size() > 0 {
 		t.Encoding = t.DetectEncoding(data)
-		log.Println(t.Encoding)
 
 		if t.Encoding != CHARSET_UTF8 && t.Encoding != CHARSET_BINARY {
 			data, err = changeEncoding(data, CHARSET_UTF8, t.Encoding)
@@ -210,9 +209,9 @@ func (t *Tab) DetectEncoding(data []byte) string {
 		return CHARSET_UTF8
 	}
 
-	r, err := chardet.NewTextDetector().DetectBest(data)
-	log.Println(r.Charset, err)
-	if err != nil {
+	r, err := chardet.NewHtmlDetector().DetectBest(data)
+
+	if err != nil || r.Confidence < 30 {
 		return CHARSET_BINARY
 	}
 
