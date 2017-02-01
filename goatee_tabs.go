@@ -52,7 +52,9 @@ func (ui *UI) NewTab(filename string) {
 		return
 	}
 
-	t := &Tab{}
+	t := &Tab{
+		Encoding: CHARSET_UTF8,
+	}
 
 	if filename == "" {
 		filename = fmt.Sprintf("new%d", newtabiter)
@@ -117,12 +119,6 @@ func (ui *UI) NewTab(filename string) {
 			return
 		}
 
-		// if err != nil {
-
-		// errorMessage(err)
-		// log.Println(err)
-		// return
-		// }
 		t.sourcebuffer.BeginNotUndoableAction()
 		t.sourcebuffer.SetText(text)
 		t.sourcebuffer.EndNotUndoableAction()
@@ -170,25 +166,18 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 	}
 	defer t.File.Close()
 
-	stat, err := t.File.Stat()
-	if err != nil {
-		err := fmt.Errorf("failed get stat of file  `%s`, %s", filename, err)
-		return "", err
-	}
-
 	data, err := ioutil.ReadAll(t.File)
 	if err != nil {
 		err := fmt.Errorf("failed read file  `%s`, %s", filename, err)
 		return "", err
 	}
 
-	if stat.Size() > 0 {
+	if len(data) > 0 {
 		t.Encoding = t.DetectEncoding(data)
 		if t.Encoding != CHARSET_UTF8 && t.Encoding != CHARSET_BINARY {
-			log.Println("change encoding")
 			newdata, err := changeEncoding(data, CHARSET_UTF8, t.Encoding)
 			if err != nil {
-				// errorMessage(err)
+				errorMessage(err)
 				t.Encoding = CHARSET_BINARY
 			} else {
 				data = newdata
@@ -218,7 +207,8 @@ func (t *Tab) DetectEncoding(data []byte) string {
 		return CHARSET_UTF8
 	}
 
-	r, err := chardet.NewHtmlDetector().DetectBest(data)
+	r, err := chardet.NewTextDetector().DetectBest(data)
+	log.Println(r)
 	if err != nil || r.Confidence < 30 {
 		return CHARSET_BINARY
 	}
