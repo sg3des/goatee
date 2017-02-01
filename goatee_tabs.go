@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
-	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -21,6 +20,7 @@ import (
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
+	"github.com/saintfish/chardet"
 
 	gsv "github.com/mattn/go-gtk/gtksourceview"
 )
@@ -179,16 +179,17 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 
 	if stat.Size() > 0 {
 		t.Encoding = t.DetectEncoding(data)
+		log.Println(t.Encoding)
 
-		if t.Encoding != "utf-8" && t.Encoding != "binary" {
-			data, err = changeEncoding(data, "utf-8", t.Encoding)
+		if t.Encoding != CHARSET_UTF8 && t.Encoding != CHARSET_BINARY {
+			data, err = changeEncoding(data, CHARSET_UTF8, t.Encoding)
 			if err != nil {
 				err := fmt.Errorf("failed change encding, %s", err)
 				return "", err
 			}
 		}
 
-		if t.Encoding != "binary" {
+		if t.Encoding != CHARSET_BINARY {
 			t.Language = t.DetectLanguage(data)
 			return string(data), nil
 		}
@@ -201,22 +202,21 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 	return "", nil
 }
 
+const CHARSET_BINARY = "binary"
+const CHARSET_UTF8 = "utf-8"
+
 func (t *Tab) DetectEncoding(data []byte) string {
-	contentType := strings.Split(http.DetectContentType(data), ";")
-	if !strings.HasPrefix(contentType[0], "text") {
-		return "binary"
+	if utf8.Valid(data) {
+		return CHARSET_UTF8
 	}
 
-	if len(contentType) >= 1 {
-		return "utf-8"
+	r, err := chardet.NewTextDetector().DetectBest(data)
+	log.Println(r.Charset, err)
+	if err != nil {
+		return CHARSET_BINARY
 	}
 
-	enc := strings.Split(contentType[1], "=")
-	if len(enc) > 1 {
-		return enc[1]
-	}
-
-	return "utf-8"
+	return r.Charset
 }
 
 // func (t *Tab) Hex() string {
