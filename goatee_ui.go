@@ -101,14 +101,6 @@ func (ui *UI) SaveAs() {
 	t.Save()
 }
 
-// func (ui *UI) CloseCurrentTab() {
-// 	ui.CloseCurrentTab()
-
-// 	if len(ui.tabs) == 0 {
-// 		gtk.MainQuit()
-// 	}
-// }
-
 func (ui *UI) Quit() {
 	for _, t := range ui.tabs {
 		t.File.Close()

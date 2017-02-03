@@ -19,6 +19,8 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
+	iconv "gopkg.in/iconv.v1"
+
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
@@ -130,7 +132,7 @@ func (ui *UI) NewTab(filename string) {
 		t.sourcebuffer.SetLanguage(gsv.SourceLanguageManagerGetDefault().GetLanguage(t.Language))
 	}
 
-	if t.Encoding != "binary" {
+	if t.Encoding != CHARSET_BINARY {
 		t.sourceview.SetTabWidth(uint(conf.TextView.IndentWidth))
 		t.sourceview.SetInsertSpacesInsteadOfTabs(conf.TextView.IndentSpace)
 
@@ -182,8 +184,7 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 		}
 
 		if t.Encoding != CHARSET_UTF8 && t.Encoding != CHARSET_BINARY {
-			newdata, err := changeEncoding(data, CHARSET_UTF8, t.Encoding)
-			// log.Println(t.Encoding, err)
+			newdata, err := t.ChangeEncoding(data, CHARSET_UTF8, t.Encoding)
 			if err != nil {
 				errorMessage(err)
 				t.Encoding = CHARSET_BINARY
@@ -209,6 +210,7 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 
 const CHARSET_BINARY = "binary"
 const CHARSET_UTF8 = "utf-8"
+const CHARSET_ASCII = "ascii"
 
 func (t *Tab) DetectEncoding(data []byte) (string, error) {
 	contentType := strings.Split(http.DetectContentType(data), ";")
@@ -227,24 +229,9 @@ func (t *Tab) DetectEncoding(data []byte) (string, error) {
 
 	if charset[1] == CHARSET_UTF8 && !utf8.Valid(data) {
 		return t.DetectChardet(data)
-		// r, err := chardet.NewTextDetector().DetectBest(data)
-		// log.Println(r)
-		// if err != nil || r.Confidence < 30 {
-		// 	return "", errors.New("failed detect charset")
-		// }
-		// return r.Charset, nil
-
 	}
 
 	return charset[1], nil
-
-	// r, err := chardet.NewTextDetector().DetectBest(data)
-	// log.Println(r)
-	// if err != nil || r.Confidence < 30 {
-	// 	return CHARSET_BINARY
-	// }
-
-	// return r.Charset
 }
 
 func (t *Tab) DetectChardet(data []byte) (string, error) {
@@ -255,14 +242,20 @@ func (t *Tab) DetectChardet(data []byte) (string, error) {
 	return r.Charset, nil
 }
 
-// func (t *Tab) Hex() string {
-// 	_, err := t.File.Seek(0, 0)
-// 	if err != nil {
-// 		log.Println("failed reset offset", err)
-// 	}
+func (t *Tab) ChangeEncoding(data []byte, to, from string) ([]byte, error) {
+	cd, err := iconv.Open(to, from) // convert to utf8
+	if err != nil {
+		return nil, fmt.Errorf("unknown charsets: `%s` `%s`, %s", to, from, err)
+	}
+	defer cd.Close()
 
-// 	return bytetohex(t.File)
-// }
+	var outbuf = make([]byte, len(data))
+	out, _, err := cd.Conv(data, outbuf)
+	if err != nil {
+		return nil, fmt.Errorf("failed change encoding from `%s`, %s", from, err)
+	}
+	return out, nil
+}
 
 func (t *Tab) DetectLanguage(data []byte) string {
 	if len(languages) == 0 {
@@ -332,19 +325,11 @@ func (t *Tab) DetectLanguage(data []byte) string {
 }
 
 func (t *Tab) DragAndDrop() {
-	// dndtargets := []gtk.TargetEntry{
-	// 	{"text/uri-list", 0, 0},
-	// 	{"STRING", 0, 1},
-	// 	{"text/plain", 0, 2},
-	// }
-
-	// t.swin.DragDestSet(gtk.DEST_DEFAULT_HIGHLIGHT|gtk.DEST_DEFAULT_DROP|gtk.DEST_DEFAULT_MOTION, dndtargets, gdk.ACTION_COPY)
 	t.sourceview.DragDestAddUriTargets()
 	t.sourceview.Connect("drag-data-received", t.DnDHandler)
 }
 
 func (t *Tab) DnDHandler(ctx *glib.CallbackContext) {
-
 	sdata := gtk.NewSelectionDataFromNative(unsafe.Pointer(ctx.Args(3)))
 	if sdata != nil {
 		a := (*[2048]uint8)(sdata.GetData())
@@ -392,7 +377,7 @@ func (t *Tab) SetTabFGColor(col [3]int) {
 func (t *Tab) Save() {
 	var err error
 	var data []byte
-	if t.Encoding == "binary" {
+	if t.Encoding == CHARSET_BINARY {
 
 		data, err = hextobyte(t.GetText(false))
 		if err != nil {
@@ -404,19 +389,18 @@ func (t *Tab) Save() {
 
 	} else if t.ReadOnly {
 
-		// log.Println("sorry, file is open readonly mode")
 		err := fmt.Errorf("file %s is read only", t.Filename)
 		errorMessage(err)
 		log.Println(err)
 		return
 
-	} else if t.Encoding == "ASCII" || t.Encoding == "UTF-8" {
+	} else if t.Encoding == CHARSET_ASCII || t.Encoding == CHARSET_UTF8 {
 
 		data = []byte(t.GetText(true))
 
 	} else {
 
-		data, err = changeEncoding([]byte(t.GetText(true)), t.Encoding, "utf-8")
+		data, err = t.ChangeEncoding([]byte(t.GetText(true)), t.Encoding, "utf-8")
 		if err != nil {
 			err := fmt.Errorf("failed restore encoding, save failed, %s", err)
 			errorMessage(err)

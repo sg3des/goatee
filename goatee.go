@@ -8,8 +8,6 @@ import (
 	arg "github.com/alexflint/go-arg"
 	"github.com/mattn/go-gtk/gtk"
 	gsv "github.com/mattn/go-gtk/gtksourceview"
-
-	iconv "gopkg.in/iconv.v1"
 )
 
 var (
@@ -58,21 +56,6 @@ func issetLanguage(lang string) bool {
 		}
 	}
 	return false
-}
-
-func changeEncoding(data []byte, to, from string) ([]byte, error) {
-	cd, err := iconv.Open(to, from) // convert to utf8
-	if err != nil {
-		return nil, fmt.Errorf("unknown charsets: `%s` `%s`, %s", to, from, err)
-	}
-	defer cd.Close()
-
-	var outbuf = make([]byte, len(data))
-	out, _, err := cd.Conv(data, outbuf)
-	if err != nil {
-		return nil, fmt.Errorf("failed change encoding from `%s`, %s", from, err)
-	}
-	return out, nil
 }
 
 func errorMessage(err error) {
