@@ -176,6 +176,7 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 
 	if len(data) > 0 {
 		t.Encoding, err = t.DetectEncoding(data)
+		log.Println(t.Encoding, err)
 		if err != nil {
 			t.Encoding = CHARSET_BINARY
 		}
@@ -212,7 +213,11 @@ const CHARSET_UTF8 = "utf-8"
 func (t *Tab) DetectEncoding(data []byte) (string, error) {
 	contentType := strings.Split(http.DetectContentType(data), ";")
 	if len(contentType) != 2 {
-		return "", errors.New("failed split content type")
+		c, err := t.DetectChardet(data)
+		if err != nil {
+			return "", errors.New("failed split content type amd detect charset")
+		}
+		return c, nil
 	}
 
 	charset := strings.Split(contentType[1], "=")
@@ -221,12 +226,13 @@ func (t *Tab) DetectEncoding(data []byte) (string, error) {
 	}
 
 	if charset[1] == CHARSET_UTF8 && !utf8.Valid(data) {
-		r, err := chardet.NewTextDetector().DetectBest(data)
-		log.Println(r)
-		if err != nil || r.Confidence < 30 {
-			return "", errors.New("failed detect charset")
-		}
-		return r.Charset, nil
+		return t.DetectChardet(data)
+		// r, err := chardet.NewTextDetector().DetectBest(data)
+		// log.Println(r)
+		// if err != nil || r.Confidence < 30 {
+		// 	return "", errors.New("failed detect charset")
+		// }
+		// return r.Charset, nil
 
 	}
 
@@ -239,6 +245,14 @@ func (t *Tab) DetectEncoding(data []byte) (string, error) {
 	// }
 
 	// return r.Charset
+}
+
+func (t *Tab) DetectChardet(data []byte) (string, error) {
+	r, err := chardet.NewTextDetector().DetectBest(data)
+	if err != nil || r.Confidence < 30 {
+		return "", errors.New("failed detect charset with chardet")
+	}
+	return r.Charset, nil
 }
 
 // func (t *Tab) Hex() string {
