@@ -4,12 +4,17 @@ import (
 	"log"
 	"os"
 	"path"
+	"reflect"
 
 	"github.com/BurntSushi/toml"
+	"github.com/mattn/go-gtk/gdk"
+	"github.com/mattn/go-gtk/gtk"
 )
 
 //conf structure contains configuration
-var conf struct {
+type Conf struct {
+	window *gtk.Window
+
 	UI struct {
 		MenuBarVisible   bool `toml:"menubar-visible"`
 		StatusBarVisible bool `toml:"statusbar-visible"`
@@ -39,9 +44,10 @@ var conf struct {
 	}
 }
 
-//ReadConf set default values for configuration and parse config file
-func ReadConf() {
+//NewConf set default values for configuration and parse config file
+func NewConf() *Conf {
 	// default values
+	conf := new(Conf)
 	conf.UI.MenuBarVisible = false
 	conf.UI.StatusBarVisible = false
 
@@ -80,4 +86,34 @@ func ReadConf() {
 		}
 		break
 	}
+
+	conf.CreateWindow()
+
+	return conf
+}
+
+//OpenWindow open window configuration
+func (c *Conf) OpenWindow() {
+	if c.window == nil {
+		c.CreateWindow()
+	}
+	c.window.ShowAll()
+}
+
+//CreateWindow create window configuration
+func (c *Conf) CreateWindow() {
+	c.window = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
+	c.window.SetTypeHint(gdk.WINDOW_TYPE_HINT_DIALOG)
+	c.window.SetDefaultSize(300, 300)
+	c.window.SetSizeRequest(300, 300)
+
+	rc := reflect.TypeOf(*c)
+	// rc := reflect.ValueOf(*c)
+	for i := 0; i < rc.NumField(); i++ {
+		log.Println(rc.Field(i).Type)
+	}
+
+	vbox := gtk.NewVBox(false, 0)
+
+	c.window.Add(vbox)
 }

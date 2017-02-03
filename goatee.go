@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	ui *UI
+	ui   *UI
+	conf *Conf
 
 	gvfsPath = "/run/user/%s/gvfs/"
 
@@ -31,7 +32,7 @@ func init() {
 	user, _ := user.Current()
 	gvfsPath = fmt.Sprintf(gvfsPath, user.Uid)
 
-	ReadConf()
+	conf = NewConf()
 
 	if len(args.Files) == 0 {
 		args.Files = append(args.Files, "")
