@@ -18,8 +18,6 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
-	"golang.org/x/text/encoding/charmap"
-
 	iconv "github.com/djimenez/iconv-go"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
@@ -177,20 +175,8 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 
 	if len(data) > 0 {
 		t.Encoding, err = t.DetectEncoding(data)
-		// log.Println(t.Encoding, err)
 		if err != nil {
-			var newdata = make([]byte, len(data)*3)
-			n, _, err := charmap.Windows1251.NewDecoder().Transform(newdata, data, true)
-
-			log.Println(string(newdata[:n]), err)
-
 			t.Encoding = CHARSET_BINARY
-			// if newdata, enc, ok := t.SeekEncoding(data); ok {
-			// 	t.Encoding = enc
-			// 	data = newdata
-			// } else {
-			// 	t.Encoding = CHARSET_BINARY
-			// }
 		}
 
 		if t.Encoding != CHARSET_UTF8 && t.Encoding != CHARSET_BINARY {
