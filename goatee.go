@@ -49,8 +49,6 @@ func main() {
 		ui.NewTab(filename)
 	}
 
-	conf.OpenWindow()
-
 	gtk.Main()
 }
 

@@ -172,6 +172,8 @@ func (ui *UI) createUIManager() *gtk.Widget {
 			<menuitem action='Replace'/>
 			<menuitem action='ReplaceOne'/>
 			<menuitem action='ReplaceAll'/>
+			<separator />
+			<menuitem action='Configuration'/>
 		</menu>
 
 		<menu name='View' action='View'>
@@ -210,6 +212,7 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	ui.newActionStock("Replace", gtk.STOCK_FIND_AND_REPLACE, "<control>h", ui.ShowReplbar)
 	ui.newAction("ReplaceOne", "Replace One", "<control><shift>h", ui.ReplaceOne)
 	ui.newAction("ReplaceAll", "Replace All", "<control><alt>Return", ui.ReplaceAll)
+	ui.newAction("Configuration", "Configuration", "<control><shift>p", conf.OpenWindow)
 
 	// View
 	ui.actionGroup.AddAction(gtk.NewAction("View", "View", "", ""))
