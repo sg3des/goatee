@@ -18,8 +18,9 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
-	iconv "gopkg.in/iconv.v1"
+	"golang.org/x/text/encoding/charmap"
 
+	iconv "github.com/djimenez/iconv-go"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
 	"github.com/saintfish/chardet"
@@ -176,9 +177,20 @@ func (t *Tab) ReadFile(filename string) (string, error) {
 
 	if len(data) > 0 {
 		t.Encoding, err = t.DetectEncoding(data)
-		log.Println(t.Encoding, err)
+		// log.Println(t.Encoding, err)
 		if err != nil {
+			var newdata = make([]byte, len(data)*3)
+			n, _, err := charmap.Windows1251.NewDecoder().Transform(newdata, data, true)
+
+			log.Println(string(newdata[:n]), err)
+
 			t.Encoding = CHARSET_BINARY
+			// if newdata, enc, ok := t.SeekEncoding(data); ok {
+			// 	t.Encoding = enc
+			// 	data = newdata
+			// } else {
+			// 	t.Encoding = CHARSET_BINARY
+			// }
 		}
 
 		if t.Encoding != CHARSET_UTF8 && t.Encoding != CHARSET_BINARY {
@@ -233,6 +245,7 @@ func (t *Tab) DetectEncoding(data []byte) (string, error) {
 }
 
 func (t *Tab) DetectChardet(data []byte) (string, error) {
+	log.Println(chardet.NewTextDetector().DetectAll(data))
 	r, err := chardet.NewTextDetector().DetectBest(data)
 	if err != nil || r.Confidence < 30 {
 		return "", errors.New("failed detect charset with chardet")
@@ -241,18 +254,32 @@ func (t *Tab) DetectChardet(data []byte) (string, error) {
 }
 
 func (t *Tab) ChangeEncoding(data []byte, to, from string) ([]byte, error) {
-	cd, err := iconv.Open(to, from) // convert to utf8
+
+	converter, err := iconv.NewConverter(from, to)
 	if err != nil {
 		return nil, fmt.Errorf("unknown charsets: `%s` `%s`, %s", to, from, err)
 	}
-	defer cd.Close()
 
-	var outbuf = make([]byte, len(data))
-	out, _, err := cd.Conv(data, outbuf)
+	newdata := make([]byte, len(data)*4)
+	_, n, err := converter.Convert(data, newdata)
 	if err != nil {
 		return nil, fmt.Errorf("failed change encoding from `%s`, %s", from, err)
 	}
-	return out, nil
+
+	return newdata[:n], nil
+
+	// cd, err := iconv.Open(to, from)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("unknown charsets: `%s` `%s`, %s", to, from, err)
+	// }
+	// defer cd.Close()
+
+	// var outbuf = make([]byte, len(data))
+	// out, _, err := cd.Conv(data, outbuf)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed change encoding from `%s`, %s", from, err)
+	// }
+	// return out, nil
 }
 
 func (t *Tab) DetectLanguage(data []byte) string {

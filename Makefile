@@ -1,16 +1,16 @@
 
-
 run: build
 	./goatee ${ARGS}
+
+get:
+	go get ./...
 
 build:
 	go build
 
-# goinstall:
-# 	go install
+goinstall:
+	go install
 
 install: 
-	# go install
-	# sudo cp hex.lang /usr/share/gtksourceview-2.0/language-specs/
-	cp ./goatee /usr/bin/
+	cp ./goatee ${DESTDIR}
 
