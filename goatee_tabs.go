@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,7 +20,6 @@ import (
 
 	iconv "gopkg.in/iconv.v1"
 
-	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
 	"github.com/saintfish/chardet"
@@ -363,11 +361,7 @@ func (t *Tab) onchange() {
 }
 
 func (t *Tab) SetTabFGColor(col [3]int) {
-	r := uint16(math.Pow(float64(col[0]), 2))
-	g := uint16(math.Pow(float64(col[1]), 2))
-	b := uint16(math.Pow(float64(col[2]), 2))
-
-	color := gdk.NewColorRGB(r, g, b)
+	color := convertColor(col)
 	t.label.ModifyFG(gtk.STATE_NORMAL, color)
 	t.label.ModifyFG(gtk.STATE_PRELIGHT, color)
 	t.label.ModifyFG(gtk.STATE_SELECTED, color)
