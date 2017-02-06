@@ -18,12 +18,13 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
-	iconv "github.com/djimenez/iconv-go"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
-	"github.com/saintfish/chardet"
 
 	gsv "github.com/mattn/go-gtk/gtksourceview"
+
+	iconv "github.com/djimenez/iconv-go"
+	"github.com/saintfish/chardet"
 )
 
 type Tab struct {
@@ -112,7 +113,9 @@ func (ui *UI) NewTab(filename string) {
 
 	t.tabbox.ShowAll()
 
-	if len(t.Filename) > 0 {
+	stat, errStat := os.Stat(filename)
+	if len(t.Filename) > 0 && os.IsExist(errStat) && !stat.IsDir() {
+
 		text, err := t.ReadFile(filename)
 		if err != nil {
 			errorMessage(err)
