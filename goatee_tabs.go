@@ -114,7 +114,8 @@ func (ui *UI) NewTab(filename string) {
 	t.tabbox.ShowAll()
 
 	stat, errStat := os.Stat(filename)
-	if len(t.Filename) > 0 && os.IsExist(errStat) && !stat.IsDir() {
+	// log.Println(os.IsExist(errStat), stat.IsDir())
+	if len(t.Filename) > 0 && errStat == nil && !stat.IsDir() {
 
 		text, err := t.ReadFile(filename)
 		if err != nil {
