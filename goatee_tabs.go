@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"regexp"
@@ -50,6 +49,12 @@ type Tab struct {
 }
 
 func (ui *UI) NewTab(filename string) {
+	filename, err := resolveFilename(filename)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
 	if len(filename) > 0 && ui.TabsContains(filename) {
 		return
 	}
@@ -58,7 +63,7 @@ func (ui *UI) NewTab(filename string) {
 		Encoding: CHARSET_UTF8,
 	}
 
-	if filename == "" {
+	if len(filename) == 0 {
 		filename = fmt.Sprintf("new%d", newtabiter)
 		newtabiter++
 	} else {
@@ -113,20 +118,23 @@ func (ui *UI) NewTab(filename string) {
 
 	t.tabbox.ShowAll()
 
-	stat, errStat := os.Stat(filename)
 	// log.Println(os.IsExist(errStat), stat.IsDir())
-	if len(t.Filename) > 0 && errStat == nil && !stat.IsDir() {
+	if len(t.Filename) > 0 { //&& errStat == nil && !stat.IsDir()
 
-		text, err := t.ReadFile(filename)
-		if err != nil {
-			errorMessage(err)
-			log.Println(err)
-			return
+		stat, err := os.Stat(filename)
+		if err == nil && !stat.IsDir() {
+
+			text, err := t.ReadFile(filename)
+			if err != nil {
+				errorMessage(err)
+				log.Println(err)
+				return
+			}
+
+			t.sourcebuffer.BeginNotUndoableAction()
+			t.sourcebuffer.SetText(text)
+			t.sourcebuffer.EndNotUndoableAction()
 		}
-
-		t.sourcebuffer.BeginNotUndoableAction()
-		t.sourcebuffer.SetText(text)
-		t.sourcebuffer.EndNotUndoableAction()
 	}
 
 	if issetLanguage(t.Language) {
@@ -350,21 +358,25 @@ func (t *Tab) DnDHandler(ctx *glib.CallbackContext) {
 		a := (*[2048]uint8)(sdata.GetData())
 		files := strings.Split(string(a[:sdata.GetLength()-1]), "\n")
 		for _, filename := range files {
-			filename = filename[:len(filename)-1]
 
-			u, err := url.Parse(filename)
+			filename, err := resolveFilename(filename[:len(filename)-1])
 			if err != nil {
-				fmt.Println("failed parse path to file", err)
+				fmt.Println(err)
 				continue
 			}
+			// u, err := url.Parse(filename)
+			// if err != nil {
+			// 	fmt.Println("failed parse path to file", err)
+			// 	continue
+			// }
 
-			if len(u.Scheme) == 0 {
-				return
-			} else if u.Scheme == "file" {
-				filename = u.Path
-			} else {
-				filename = path.Join(gvfsPath, fmt.Sprintf("%s:host=%s", u.Scheme, u.Host), u.Path)
-			}
+			// if len(u.Scheme) == 0 {
+			// 	return
+			// } else if u.Scheme == "file" {
+			// 	filename = u.Path
+			// } else {
+			// 	filename = path.Join(gvfsPath, fmt.Sprintf("%s:host=%s", u.Scheme, u.Host), u.Path)
+			// }
 
 			ui.NewTab(filename)
 		}

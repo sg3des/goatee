@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/url"
 	"os/user"
+	"path"
 
 	arg "github.com/alexflint/go-arg"
 	"github.com/mattn/go-gtk/gdk"
@@ -73,4 +75,25 @@ func convertColor(col [3]int) *gdk.Color {
 	b := uint16(math.Pow(float64(col[2]), 2))
 
 	return gdk.NewColorRGB(r, g, b)
+}
+
+func resolveFilename(filename string) (string, error) {
+	if len(filename) == 0 {
+		return filename, nil
+	}
+
+	u, err := url.Parse(filename)
+	if err != nil {
+		return filename, fmt.Errorf("failed parse path `%s`, reason: %s", filename, err)
+	}
+
+	if len(u.Scheme) == 0 {
+		//
+	} else if u.Scheme == "file" {
+		filename = u.Path
+	} else {
+		filename = path.Join(gvfsPath, fmt.Sprintf("%s:host=%s", u.Scheme, u.Host), u.Path)
+	}
+
+	return filename, nil
 }
