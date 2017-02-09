@@ -155,7 +155,7 @@ func (c *Conf) OpenWindow() {
 //CreateWindow create window configuration
 func (c *Conf) CreateWindow() {
 	c.window = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
-	c.window.SetName("Configuration")
+	c.window.SetName("Preferences")
 	c.window.SetTypeHint(gdk.WINDOW_TYPE_HINT_DIALOG)
 	c.window.SetDefaultSize(300, 500)
 	c.window.SetSizeRequest(300, 500)
