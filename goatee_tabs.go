@@ -243,7 +243,7 @@ func (t *Tab) DetectEncoding(data []byte) (string, error) {
 }
 
 func (t *Tab) DetectChardet(data []byte) (string, error) {
-	log.Println(chardet.NewTextDetector().DetectAll(data))
+	// log.Println(chardet.NewTextDetector().DetectAll(data))
 	r, err := chardet.NewTextDetector().DetectBest(data)
 	if err != nil || r.Confidence < 30 {
 		return "", errors.New("failed detect charset with chardet")
@@ -252,7 +252,6 @@ func (t *Tab) DetectChardet(data []byte) (string, error) {
 }
 
 func (t *Tab) ChangeEncoding(data []byte, to, from string) ([]byte, error) {
-
 	converter, err := iconv.NewConverter(from, to)
 	if err != nil {
 		return nil, fmt.Errorf("unknown charsets: `%s` `%s`, %s", to, from, err)
@@ -278,6 +277,41 @@ func (t *Tab) ChangeEncoding(data []byte, to, from string) ([]byte, error) {
 	// 	return nil, fmt.Errorf("failed change encoding from `%s`, %s", from, err)
 	// }
 	// return out, nil
+}
+
+func (t *Tab) ChangeCurrEncoding(from string) {
+	var data []byte
+	var err error
+
+	text := t.GetText(true)
+
+	if t.Encoding == CHARSET_BINARY {
+		text = regexp.MustCompile("[ \n\r]+").ReplaceAllString(text, "")
+		data, err = hex.DecodeString(text)
+	} else {
+		data, err = t.ChangeEncoding([]byte(text), t.Encoding, CHARSET_UTF8)
+	}
+
+	if err != nil {
+		errorMessage(err)
+		log.Println(err)
+		return
+	}
+
+	if from == CHARSET_BINARY {
+		t.Language = CHARSET_BINARY
+		data = []byte(bytetohex(bytes.NewReader(data)))
+	} else {
+		data, err = t.ChangeEncoding(data, CHARSET_UTF8, from)
+		if err != nil {
+			log.Println(err)
+			errorMessage(err)
+			return
+		}
+	}
+
+	t.Encoding = from
+	t.sourcebuffer.SetText(string(data))
 }
 
 func (t *Tab) DetectLanguage(data []byte) string {

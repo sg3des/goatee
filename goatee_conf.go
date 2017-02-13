@@ -157,10 +157,12 @@ func (c *Conf) CreateWindow() {
 	c.window = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	c.window.SetName("Preferences")
 	c.window.SetTypeHint(gdk.WINDOW_TYPE_HINT_DIALOG)
-	c.window.SetDefaultSize(300, 500)
-	c.window.SetSizeRequest(300, 500)
+	c.window.SetDefaultSize(300, 300)
+	c.window.SetSizeRequest(300, 300)
 
 	vbox := gtk.NewVBox(false, 0)
+
+	notebook := gtk.NewNotebook()
 
 	rc := reflect.TypeOf(*conf)
 	rv := reflect.ValueOf(conf).Elem()
@@ -169,11 +171,8 @@ func (c *Conf) CreateWindow() {
 			continue
 		}
 
-		frame := gtk.NewFrame(rc.Field(i).Name)
-		vbox.PackStart(frame, false, false, 5)
-
 		fvbox := gtk.NewVBox(false, 0)
-		frame.Add(fvbox)
+		notebook.AppendPage(fvbox, gtk.NewLabel(rc.Field(i).Name))
 
 		confStruct := rc.Field(i).Type
 		for j := 0; j < confStruct.NumField(); j++ {
@@ -235,9 +234,8 @@ func (c *Conf) CreateWindow() {
 				hbox.PackEnd(widget, false, false, 5)
 			}
 
-			fvbox.Add(hbox)
+			fvbox.PackStart(hbox, false, false, 5)
 		}
-
 	}
 
 	closebtn := gtk.NewButtonFromStock(gtk.STOCK_CLOSE)
@@ -245,7 +243,9 @@ func (c *Conf) CreateWindow() {
 	hbox := gtk.NewHBox(false, 0)
 	hbox.PackEnd(closebtn, false, false, 5)
 
-	vbox.PackStart(hbox, false, false, 5)
+	vbox.Add(notebook)
+	vbox.PackEnd(hbox, false, false, 5)
+
 	c.window.Add(vbox)
 }
 

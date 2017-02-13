@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os/user"
 	"path"
+	"strings"
 
 	arg "github.com/alexflint/go-arg"
 	"github.com/mattn/go-gtk/gdk"
@@ -23,6 +24,33 @@ var (
 	newtabiter int
 
 	languages = gsv.SourceLanguageManagerGetDefault().GetLanguageIds()
+	charsets  = []string{
+		CHARSET_UTF8,
+		"utf-16",
+		"",
+		"ISO-8859-2",
+		"ISO-8859-7",
+		"ISO-8859-9",
+		"ISO-8859-15",
+		"ShiftJIS",
+		"EUC-KR",
+		"gb18030",
+		"Big5",
+		"TIS-620",
+		"KOI8-R",
+		"",
+		"windows-874",
+		"windows-1250",
+		"windows-1251",
+		"windows-1252",
+		"windows-1253",
+		"windows-1254",
+		"windows-1255",
+		"windows-1256",
+		"windows-1257",
+		"windows-1258",
+		"",
+		CHARSET_BINARY}
 )
 
 var args struct {
@@ -61,6 +89,18 @@ func issetLanguage(lang string) bool {
 		}
 	}
 	return false
+}
+
+func xmlEncodings() string {
+	var xmldata []string
+	for _, c := range charsets {
+		if len(c) == 0 {
+			xmldata = append(xmldata, "<separator />")
+		} else {
+			xmldata = append(xmldata, "<menuitem action='"+c+"' />")
+		}
+	}
+	return strings.Join(xmldata, "\n")
 }
 
 func errorMessage(err error) {

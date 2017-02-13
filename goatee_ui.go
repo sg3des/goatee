@@ -5,6 +5,7 @@ import (
 	"path"
 
 	"github.com/mattn/go-gtk/gdk"
+	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
 )
 
@@ -160,6 +161,10 @@ func (ui *UI) createUIManager() *gtk.Widget {
 			<menuitem action='Save' />
 			<menuitem action='SaveAs' />
 			<separator />
+			<menu action='Encoding'>
+			` + xmlEncodings() + `
+			</menu>
+			<separator />
 			<menuitem action='CloseTab' />
 			<menuitem action='Quit' />
 		</menu>
@@ -199,6 +204,14 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	ui.newActionStock("Open", gtk.STOCK_OPEN, "", ui.Open)
 	ui.newActionStock("Save", gtk.STOCK_SAVE, "", ui.Save)
 	ui.newActionStock("SaveAs", gtk.STOCK_SAVE_AS, "<control><shift>s", ui.SaveAs)
+	ui.newAction("Encoding", "Encoding", "", nil)
+	//Encodings
+	for _, c := range charsets {
+		if len(c) != 0 {
+			ui.newAction(c, c, "", ui.ChangeEncodingCurrentTab, c)
+		}
+	}
+
 	ui.newAction("CloseTab", "Close Tab", "<control>w", ui.CloseCurrentTab)
 	ui.newActionStock("Quit", gtk.STOCK_QUIT, "", ui.Quit)
 
@@ -216,8 +229,6 @@ func (ui *UI) createUIManager() *gtk.Widget {
 
 	// View
 	ui.actionGroup.AddAction(gtk.NewAction("View", "View", "", ""))
-	// ui.actionGroup.AddAction(gtk.NewAction("Encoding", "Encoding", "", ""))
-
 	ui.newToggleAction("Menubar", "Menubar", "<control>M", conf.UI.MenuBarVisible, ui.ToggleMenuBar)
 
 	ui.menubar = uiManager.GetWidget("/MenuBar")
@@ -225,15 +236,22 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	return ui.menubar
 }
 
-func (ui *UI) newAction(dst, label, accel string, f func()) {
+func (ui *UI) ChangeEncodingCurrentTab(ctx *glib.CallbackContext) {
+	charset := ctx.Data().(string)
+	ui.GetCurrentTab().ChangeCurrEncoding(charset)
+}
+
+func (ui *UI) newAction(dst, label, accel string, f interface{}, vars ...interface{}) {
 	action := gtk.NewAction(dst, label, "", "")
-	action.Connect("activate", f)
+	if f != nil {
+		action.Connect("activate", f, vars...)
+	}
 	ui.actionGroup.AddActionWithAccel(action, accel)
 }
 
-func (ui *UI) newActionStock(dst, stock, accel string, f func()) {
+func (ui *UI) newActionStock(dst, stock, accel string, f interface{}, vars ...interface{}) {
 	action := gtk.NewAction(dst, "", "", stock)
-	action.Connect("activate", f)
+	action.Connect("activate", f, vars...)
 	ui.actionGroup.AddActionWithAccel(action, accel)
 }
 
