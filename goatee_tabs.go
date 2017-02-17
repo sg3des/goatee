@@ -351,6 +351,11 @@ func (t *Tab) DetectLanguage(data []byte) string {
 		return maybexml
 	}
 
+	name := gsv.NewSourceLanguageManager().GuessLanguage(t.Filename, "").GetName()
+	if len(name) > 0 {
+		return strings.ToLower(name)
+	}
+
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -378,7 +383,8 @@ func (t *Tab) DetectLanguage(data []byte) string {
 		}
 	}
 
-	return strings.ToLower(gsv.NewSourceLanguageManager().GuessLanguage(t.Filename, "").GetName())
+	return ""
+	// return strings.ToLower(gsv.NewSourceLanguageManager().GuessLanguage(t.Filename, "").GetName())
 }
 
 func (t *Tab) DragAndDrop() {
