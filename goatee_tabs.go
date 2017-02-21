@@ -32,6 +32,7 @@ type Tab struct {
 	Encoding string
 	Language string
 	ReadOnly bool
+	Dirty    bool
 	// Empty    bool
 
 	tabbox   *gtk.HBox
@@ -283,19 +284,34 @@ func (t *Tab) ChangeCurrEncoding(from string) {
 	var data []byte
 	var err error
 
-	text := t.GetText(true)
+	dirtyState := t.Dirty
 
-	if t.Encoding == CHARSET_BINARY {
-		text = regexp.MustCompile("[ \n\r]+").ReplaceAllString(text, "")
-		data, err = hex.DecodeString(text)
+	var tmpdata []byte
+	if t.Dirty {
+		tmpdata = []byte(t.GetText(true))
 	} else {
-		data, err = t.ChangeEncoding([]byte(text), t.Encoding, CHARSET_UTF8)
+		tmpdata, err = ioutil.ReadFile(t.Filename)
+		if err != nil {
+			errorMessage(err)
+			log.Println(err)
+			return
+		}
 	}
 
-	if err != nil {
-		errorMessage(err)
-		log.Println(err)
-		return
+	if t.Dirty {
+		if t.Encoding == CHARSET_BINARY {
+			tmpdata = regexp.MustCompile("[ \n\r]+").ReplaceAll(tmpdata, []byte{})
+			data, err = hex.DecodeString(string(tmpdata))
+		} else {
+			data, err = t.ChangeEncoding(tmpdata, t.Encoding, CHARSET_UTF8)
+		}
+		if err != nil {
+			errorMessage(err)
+			log.Println(err)
+			return
+		}
+	} else {
+		data = tmpdata
 	}
 
 	if from == CHARSET_BINARY {
@@ -312,6 +328,7 @@ func (t *Tab) ChangeCurrEncoding(from string) {
 
 	t.Encoding = from
 	t.sourcebuffer.SetText(string(data))
+	t.Dirty = dirtyState
 }
 
 func (t *Tab) DetectLanguage(data []byte) string {
@@ -425,6 +442,7 @@ func (t *Tab) DnDHandler(ctx *glib.CallbackContext) {
 
 func (t *Tab) onchange() {
 	// t.Data = t.GetText()
+	t.Dirty = true
 	t.SetTabFGColor(conf.Tabs.FGModified)
 	// t.Empty = false
 }
