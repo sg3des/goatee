@@ -222,7 +222,11 @@ const CHARSET_UTF8 = "utf-8"
 const CHARSET_ASCII = "ascii"
 
 func (t *Tab) DetectEncoding(data []byte) (string, error) {
-	contentType := strings.Split(http.DetectContentType(data), ";")
+	httpContentType := http.DetectContentType(data)
+	if !strings.HasPrefix(httpContentType, "text") {
+		return CHARSET_BINARY, nil
+	}
+	contentType := strings.Split(httpContentType, ";")
 	if len(contentType) != 2 {
 		c, err := t.DetectChardet(data)
 		if err != nil {
