@@ -56,12 +56,25 @@ func (ui *UI) NewTab(filename string) {
 		return
 	}
 
-	if len(filename) > 0 && ui.TabsContains(filename) {
-		return
+	if len(filename) > 0 {
+		if t, ok := ui.LookupTab(filename); ok {
+			text, err := t.ReadFile(filename)
+			if err != nil {
+				errorMessage(err)
+				log.Println(err)
+				return
+			}
+			t.sourcebuffer.SetText(text)
+			t.Dirty = false
+			t.SetTabFGColor(conf.Tabs.FGNormal)
+			//TODO: reopen
+			return
+		}
 	}
 
 	t := &Tab{
 		Encoding: CHARSET_UTF8,
+		Language: "sh",
 	}
 
 	if len(filename) == 0 {
@@ -85,7 +98,7 @@ func (ui *UI) NewTab(filename string) {
 
 	t.sourcebuffer = gsv.NewSourceBuffer()
 
-	t.sourcebuffer.SetStyleScheme(gsv.NewSourceStyleSchemeManager().GetScheme("classic"))
+	t.sourcebuffer.SetStyleScheme(gsv.NewSourceStyleSchemeManager().GetScheme(conf.TextView.StyleScheme))
 
 	t.sourceview = gsv.NewSourceViewWithBuffer(t.sourcebuffer)
 	t.sourceview.SetHighlightCurrentLine(conf.TextView.LineHightlight)
@@ -139,7 +152,7 @@ func (ui *UI) NewTab(filename string) {
 	}
 
 	if issetLanguage(t.Language) {
-		t.sourcebuffer.SetLanguage(gsv.SourceLanguageManagerGetDefault().GetLanguage(t.Language))
+		t.sourcebuffer.SetLanguage(langManager.GetLanguage(t.Language))
 	}
 
 	if t.Encoding != CHARSET_BINARY {
@@ -159,6 +172,22 @@ func (ui *UI) NewTab(filename string) {
 	ui.notebook.ShowAll()
 	ui.notebook.SetCurrentPage(n)
 	t.sourceview.GrabFocus()
+
+	t.UpdateMenuSeleted()
+}
+
+func (t *Tab) UpdateMenuSeleted() {
+	if ra, ok := ui.encodings[t.Encoding]; ok {
+		// ra.btn.HandlerDisconnect(ra.id)
+		ra.SetActive(true)
+		// ra.id = ra.btn.Connect("activate", ui.changeEncodingCurrentTab, t.Encoding)
+	}
+
+	if ra, ok := ui.languages[t.Language]; ok {
+		// ra.btn.HandlerDisconnect(ra.id)
+		ra.SetActive(true)
+		// ra.id = ra.btn.Connect("activate", ui.changeLanguageCurrentTab, t.Language)
+	}
 }
 
 func (t *Tab) Close() {
@@ -226,6 +255,7 @@ func (t *Tab) DetectEncoding(data []byte) (string, error) {
 	if !strings.HasPrefix(httpContentType, "text") {
 		return CHARSET_BINARY, nil
 	}
+
 	contentType := strings.Split(httpContentType, ";")
 	if len(contentType) != 2 {
 		c, err := t.DetectChardet(data)
@@ -291,7 +321,7 @@ func (t *Tab) ChangeCurrEncoding(from string) {
 	dirtyState := t.Dirty
 
 	var tmpdata []byte
-	if t.Dirty {
+	if t.Dirty || t.File == nil {
 		tmpdata = []byte(t.GetText(true))
 	} else {
 		tmpdata, err = ioutil.ReadFile(t.Filename)
@@ -331,8 +361,21 @@ func (t *Tab) ChangeCurrEncoding(from string) {
 	}
 
 	t.Encoding = from
-	t.sourcebuffer.SetText(string(data))
+	if t.sourcebuffer != nil {
+		t.sourcebuffer.SetText(string(data))
+	}
 	t.Dirty = dirtyState
+}
+
+func (t *Tab) ChangeLanguage(lang string) {
+	if t == nil {
+		return
+	}
+
+	t.Language = lang
+	if t.sourcebuffer != nil {
+		t.sourcebuffer.SetLanguage(langManager.GetLanguage(lang))
+	}
 }
 
 func (t *Tab) DetectLanguage(data []byte) string {
@@ -383,13 +426,20 @@ func (t *Tab) DetectLanguage(data []byte) string {
 		if len(line) == 0 {
 			continue
 		}
+
 		if line[0] == '#' {
+			if issetLanguage("toml") {
+				return "toml"
+			}
 			if issetLanguage("yaml") {
 				return "yaml"
 			}
-			if issetLanguage("desktop") {
-				return "desktop"
+			if issetLanguage("sh") {
+				return "sh"
 			}
+			// if issetLanguage("desktop") {
+			// 	return "desktop"
+			// }
 		}
 
 		if line[0] == ';' {
@@ -397,14 +447,26 @@ func (t *Tab) DetectLanguage(data []byte) string {
 				return "ini"
 			}
 		}
-	}
-	if ext == ".conf" || ext == ".cfg" {
-		if issetLanguage("ini") {
-			return "ini"
+
+		if line[0] == '[' {
+			if issetLanguage("ini") {
+				return "ini"
+			}
+			if issetLanguage("toml") {
+				return "ini"
+			}
 		}
 	}
+	// if ext == ".conf" || ext == ".cfg" {
+	// 	if issetLanguage("ini") {
+	// 		return "ini"
+	// 	}
+	// 	if issetLanguage("toml") {
+	// 		return "toml"
+	// 	}
+	// }
 
-	return ""
+	return "sh"
 	// return strings.ToLower(gsv.NewSourceLanguageManager().GuessLanguage(t.Filename, "").GetName())
 }
 
@@ -506,6 +568,10 @@ func (t *Tab) Save() {
 }
 
 func (t *Tab) GetText(hiddenChars bool) string {
+	if t.sourcebuffer == nil {
+		return ""
+	}
+
 	var start gtk.TextIter
 	var end gtk.TextIter
 

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"path"
+	"strconv"
 
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
@@ -14,6 +16,9 @@ type UI struct {
 
 	accelGroup  *gtk.AccelGroup
 	actionGroup *gtk.ActionGroup
+
+	encodings map[string]*gtk.RadioAction
+	languages map[string]*gtk.RadioAction
 
 	vbox     *gtk.VBox
 	menubar  *gtk.Widget
@@ -49,6 +54,7 @@ func CreateUI() *UI {
 	ui.vbox.PackStart(ui.createUIManager(), false, false, 0)
 
 	ui.notebook = gtk.NewNotebook()
+	ui.notebook.Connect("switch-page", ui.onSwitchPage)
 	ui.vbox.PackStart(ui.notebook, true, true, 0)
 	ui.vbox.PackStart(ui.createFooter(), false, false, 0)
 	ui.window.Add(ui.vbox)
@@ -164,6 +170,9 @@ func (ui *UI) createUIManager() *gtk.Widget {
 			<menu action='Encoding'>
 			` + xmlEncodings() + `
 			</menu>
+			<menu action='Language'>
+			` + xmlLanguages() + `
+			</menu>
 			<separator />
 			<menuitem action='CloseTab' />
 			<menuitem action='Quit' />
@@ -204,11 +213,31 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	ui.newActionStock("Open", gtk.STOCK_OPEN, "", ui.Open)
 	ui.newActionStock("Save", gtk.STOCK_SAVE, "", ui.Save)
 	ui.newActionStock("SaveAs", gtk.STOCK_SAVE_AS, "<control><shift>s", ui.SaveAs)
-	ui.newAction("Encoding", "Encoding", "", nil)
+
 	//Encodings
-	for _, c := range charsets {
+	ui.newAction("Encoding", "Encoding", "", nil)
+	ui.encodings = make(map[string]*gtk.RadioAction)
+	var encodingsGroup *glib.SList
+	for n, c := range charsets {
 		if len(c) != 0 {
-			ui.newAction(c, c, "", ui.ChangeEncodingCurrentTab, c)
+			ra := ui.newRadioAction(c, c, "", false, n, ui.changeEncodingCurrentTab, c)
+			ra.SetGroup(encodingsGroup)
+			encodingsGroup = ra.GetGroup()
+			ui.encodings[c] = ra
+		}
+	}
+
+	//Languages
+	ui.newAction("Language", "Language", "", nil)
+	ui.languages = make(map[string]*gtk.RadioAction)
+	var langGroup *glib.SList
+	for section, langs := range structureLanguages() {
+		ui.newAction(section, section, "", nil)
+		for _, l := range langs {
+			ra := ui.newRadioAction(l.name, l.name, "", false, l.n, ui.changeLanguageCurrentTab, l.name)
+			ra.SetGroup(langGroup)
+			langGroup = ra.GetGroup()
+			ui.languages[l.name] = ra
 		}
 	}
 
@@ -236,11 +265,6 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	return ui.menubar
 }
 
-func (ui *UI) ChangeEncodingCurrentTab(ctx *glib.CallbackContext) {
-	charset := ctx.Data().(string)
-	ui.GetCurrentTab().ChangeCurrEncoding(charset)
-}
-
 func (ui *UI) newAction(dst, label, accel string, f interface{}, vars ...interface{}) {
 	action := gtk.NewAction(dst, label, "", "")
 	if f != nil {
@@ -260,6 +284,14 @@ func (ui *UI) newToggleAction(dst, label, accel string, state bool, f func()) {
 	action.SetActive(state)
 	action.Connect("activate", f)
 	ui.actionGroup.AddActionWithAccel(&action.Action, accel)
+}
+
+func (ui *UI) newRadioAction(dst, label, accel string, state bool, n int, f interface{}, vars ...interface{}) *gtk.RadioAction {
+	action := gtk.NewRadioAction(dst, label, "", "", n)
+	action.SetActive(state)
+	action.Connect("activate", f, vars...)
+	ui.actionGroup.AddActionWithAccel(&action.Action, accel)
+	return action
 }
 
 func (ui *UI) homogeneousTabs() {
@@ -283,14 +315,24 @@ func (ui *UI) homogeneousTabs() {
 	}
 }
 
-func (ui *UI) TabsContains(filename string) bool {
+func (ui *UI) changeEncodingCurrentTab(ctx *glib.CallbackContext) {
+	charset := ctx.Data().(string)
+	ui.GetCurrentTab().ChangeCurrEncoding(charset)
+}
+
+func (ui *UI) changeLanguageCurrentTab(ctx *glib.CallbackContext) {
+	lang := ctx.Data().(string)
+	ui.GetCurrentTab().ChangeLanguage(lang)
+}
+
+func (ui *UI) LookupTab(filename string) (*Tab, bool) {
 	for n, t := range ui.tabs {
 		if t.Filename == filename {
 			ui.notebook.SetCurrentPage(n)
-			return true
+			return t, true
 		}
 	}
-	return false
+	return nil, false
 }
 
 func (ui *UI) CloseCurrentTab() {
@@ -307,11 +349,21 @@ func (ui *UI) CloseTab(n int) {
 }
 
 func (ui *UI) GetCurrentTab() *Tab {
+	if ui.notebook == nil {
+		return &Tab{}
+	}
 	n := ui.notebook.GetCurrentPage()
 	if n < 0 {
 		return nil
 	}
 	return ui.tabs[n]
+}
+
+func (ui *UI) onSwitchPage(ctx *glib.CallbackContext) {
+	n, _ := strconv.Atoi(fmt.Sprintf("%v", ctx.Args(1)))
+	if n < len(ui.tabs) {
+		ui.tabs[n].UpdateMenuSeleted()
+	}
 }
 
 func (ui *UI) createFooter() *gtk.Table {

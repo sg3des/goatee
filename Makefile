@@ -6,7 +6,7 @@ get:
 	go get ./...
 
 build:
-	go build
+	go build -ldflags="-s -w"
 
 goinstall:
 	go install

@@ -9,10 +9,11 @@ import (
 	"path"
 	"strings"
 
-	arg "github.com/alexflint/go-arg"
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/gtk"
 	gsv "github.com/mattn/go-gtk/gtksourceview"
+
+	"github.com/sg3des/argum"
 )
 
 var (
@@ -23,8 +24,10 @@ var (
 
 	newtabiter int
 
-	languages = gsv.SourceLanguageManagerGetDefault().GetLanguageIds()
-	charsets  = []string{
+	langManager = gsv.SourceLanguageManagerGetDefault()
+	languages   = langManager.GetLanguageIds()
+
+	charsets = []string{
 		CHARSET_UTF8,
 		"utf-16",
 		"",
@@ -54,12 +57,12 @@ var (
 )
 
 var args struct {
-	Files []string `arg:"positional"`
+	Files []string `argum:"pos"`
 }
 
 func init() {
 	log.SetFlags(log.Lshortfile)
-	arg.MustParse(&args)
+	argum.MustParse(&args)
 
 	user, _ := user.Current()
 	gvfsPath = fmt.Sprintf(gvfsPath, user.Uid)
@@ -89,6 +92,40 @@ func issetLanguage(lang string) bool {
 		}
 	}
 	return false
+}
+
+func xmlLanguages() string {
+	//construct sections
+	structure := structureLanguages()
+
+	var xmldata []string
+	for section, langs := range structure {
+		xmldata = append(xmldata, "<menu action='"+section+"'>")
+		for _, l := range langs {
+			xmldata = append(xmldata, "<menuitem action='"+l.name+"' />")
+		}
+		xmldata = append(xmldata, "</menu>")
+	}
+
+	return strings.Join(xmldata, "\n")
+}
+
+type language struct {
+	n    int
+	name string
+}
+
+func structureLanguages() map[string][]language {
+	var structure = make(map[string][]language)
+	for n, langname := range languages {
+		lang := langManager.GetLanguage(langname)
+		section := lang.GetSection()
+		if _, ok := structure[section]; !ok {
+			structure[section] = []language{}
+		}
+		structure[section] = append(structure[section], language{n, langname})
+	}
+	return structure
 }
 
 func xmlEncodings() string {
