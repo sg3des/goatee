@@ -315,6 +315,9 @@ func (t *Tab) ChangeEncoding(data []byte, to, from string) ([]byte, error) {
 }
 
 func (t *Tab) ChangeCurrEncoding(from string) {
+	if t == nil {
+		return
+	}
 	var data []byte
 	var err error
 
