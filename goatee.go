@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math"
 	"net/url"
+	"os"
 	"os/user"
 	"path"
 	"strings"
@@ -155,6 +157,8 @@ func convertColor(col [3]int) *gdk.Color {
 }
 
 func resolveFilename(filename string) (string, error) {
+	log.Println(filename)
+
 	if len(filename) == 0 {
 		return filename, nil
 	}
@@ -165,12 +169,55 @@ func resolveFilename(filename string) (string, error) {
 	}
 
 	if len(u.Scheme) == 0 {
+		return filename, nil
+	}
+
+	log.Println(u.Scheme)
+	if len(u.Scheme) == 0 {
 		//
 	} else if u.Scheme == "file" {
 		filename = u.Path
 	} else {
 		filename = path.Join(gvfsPath, fmt.Sprintf("%s:host=%s", u.Scheme, u.Host), u.Path)
+
+		if _, err := os.Stat(filename); err != nil {
+			var ok bool
+			filename, ok = findGVFS(u)
+			log.Println(filename)
+			if !ok {
+				err := fmt.Errorf("faild recognized path to file")
+				errorMessage(err)
+				return "", err
+			}
+		}
 	}
 
 	return filename, nil
+}
+
+//crunch!!!!
+func findGVFS(u *url.URL) (string, bool) {
+	dirs, err := ioutil.ReadDir(gvfsPath)
+	if err != nil {
+		return "", false
+	}
+
+	for _, dir := range dirs {
+		log.Println(dir.Name(), u.Path, string(os.PathSeparator))
+		if !dir.IsDir() {
+			continue
+		}
+
+		if strings.Contains(dir.Name(), u.Scheme) &&
+			strings.Contains(dir.Name(), u.Host) {
+
+			if strings.Contains(dir.Name(), ",") {
+				p := strings.TrimLeft(u.Path, string(os.PathSeparator))
+				uPath := strings.SplitN(p, string(os.PathSeparator), 2)
+				return path.Join(gvfsPath, dir.Name(), uPath[1]), true
+			}
+			return path.Join(gvfsPath, dir.Name(), u.Path), true
+		}
+	}
+	return "", false
 }
