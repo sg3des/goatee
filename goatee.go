@@ -157,8 +157,6 @@ func convertColor(col [3]int) *gdk.Color {
 }
 
 func resolveFilename(filename string) (string, error) {
-	log.Println(filename)
-
 	if len(filename) == 0 {
 		return filename, nil
 	}
@@ -172,7 +170,6 @@ func resolveFilename(filename string) (string, error) {
 		return filename, nil
 	}
 
-	log.Println(u.Scheme)
 	if len(u.Scheme) == 0 {
 		//
 	} else if u.Scheme == "file" {
@@ -183,7 +180,6 @@ func resolveFilename(filename string) (string, error) {
 		if _, err := os.Stat(filename); err != nil {
 			var ok bool
 			filename, ok = findGVFS(u)
-			log.Println(filename)
 			if !ok {
 				err := fmt.Errorf("faild recognized path to file")
 				errorMessage(err)

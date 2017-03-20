@@ -318,6 +318,13 @@ func (t *Tab) ChangeCurrEncoding(from string) {
 	if t == nil {
 		return
 	}
+
+	log.Println("ChangeCurrEncoding", t.Filename, t.Encoding, from)
+
+	if t.Encoding == from {
+		return
+	}
+
 	var data []byte
 	var err error
 
@@ -374,6 +381,14 @@ func (t *Tab) ChangeLanguage(lang string) {
 	if t == nil {
 		return
 	}
+
+	log.Println("ChangeLanguage", t.Filename, t.Language, lang)
+
+	if t.Language == lang {
+		return
+	}
+
+	// panic(t.Filename)
 
 	t.Language = lang
 	if t.sourcebuffer != nil {
@@ -456,7 +471,7 @@ func (t *Tab) DetectLanguage(data []byte) string {
 				return "ini"
 			}
 			if issetLanguage("toml") {
-				return "ini"
+				return "toml"
 			}
 		}
 	}

@@ -17,7 +17,9 @@ type UI struct {
 	accelGroup  *gtk.AccelGroup
 	actionGroup *gtk.ActionGroup
 
+	userEnc   bool
 	encodings map[string]*gtk.RadioAction
+	userLang  bool
 	languages map[string]*gtk.RadioAction
 
 	vbox     *gtk.VBox
@@ -215,7 +217,7 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	ui.newActionStock("SaveAs", gtk.STOCK_SAVE_AS, "<control><shift>s", ui.SaveAs)
 
 	//Encodings
-	ui.newAction("Encoding", "Encoding", "", nil)
+	ui.newAction("Encoding", "Encoding", "", func() { ui.userEnc = true })
 	ui.encodings = make(map[string]*gtk.RadioAction)
 	var encodingsGroup *glib.SList
 	for n, c := range charsets {
@@ -228,7 +230,7 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	}
 
 	//Languages
-	ui.newAction("Language", "Language", "", nil)
+	ui.newAction("Language", "Language", "", func() { ui.userLang = true })
 	ui.languages = make(map[string]*gtk.RadioAction)
 	var langGroup *glib.SList
 	for section, langs := range structureLanguages() {
@@ -289,7 +291,7 @@ func (ui *UI) newToggleAction(dst, label, accel string, state bool, f func()) {
 func (ui *UI) newRadioAction(dst, label, accel string, state bool, n int, f interface{}, vars ...interface{}) *gtk.RadioAction {
 	action := gtk.NewRadioAction(dst, label, "", "", n)
 	action.SetActive(state)
-	action.Connect("activate", f, vars...)
+	action.Connect("changed", f, vars...)
 	ui.actionGroup.AddActionWithAccel(&action.Action, accel)
 	return action
 }
@@ -316,13 +318,25 @@ func (ui *UI) homogeneousTabs() {
 }
 
 func (ui *UI) changeEncodingCurrentTab(ctx *glib.CallbackContext) {
+	if !ui.userEnc {
+		return
+	}
+
 	charset := ctx.Data().(string)
 	ui.GetCurrentTab().ChangeCurrEncoding(charset)
+
+	ui.userEnc = false
 }
 
 func (ui *UI) changeLanguageCurrentTab(ctx *glib.CallbackContext) {
+	if !ui.userLang {
+		return
+	}
+
 	lang := ctx.Data().(string)
 	ui.GetCurrentTab().ChangeLanguage(lang)
+
+	ui.userLang = false
 }
 
 func (ui *UI) LookupTab(filename string) (*Tab, bool) {
@@ -362,7 +376,7 @@ func (ui *UI) GetCurrentTab() *Tab {
 func (ui *UI) onSwitchPage(ctx *glib.CallbackContext) {
 	n, _ := strconv.Atoi(fmt.Sprintf("%v", ctx.Args(1)))
 	if n < len(ui.tabs) {
-		ui.tabs[n].UpdateMenuSeleted()
+		// ui.tabs[n].UpdateMenuSeleted()
 	}
 }
 
