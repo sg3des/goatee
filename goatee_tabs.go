@@ -57,6 +57,7 @@ func (ui *UI) NewTab(filename string) {
 	}
 
 	if len(filename) > 0 {
+		//reload if this file already open
 		if t, ok := ui.LookupTab(filename); ok {
 			text, err := t.ReadFile(filename)
 			if err != nil {
@@ -86,7 +87,7 @@ func (ui *UI) NewTab(filename string) {
 
 	if len(t.Filename) > 0 {
 		ct := ui.GetCurrentTab()
-		if ct != nil && len(ct.Filename) == 0 {
+		if ct != nil && len(ct.Filename) == 0 && !ct.Dirty {
 			ct.Close()
 			// ui.CloseCurrentTab()
 		}
