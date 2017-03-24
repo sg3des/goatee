@@ -17,10 +17,9 @@ type UI struct {
 	accelGroup  *gtk.AccelGroup
 	actionGroup *gtk.ActionGroup
 
-	userEnc   bool
-	encodings map[string]*gtk.RadioAction
-	userLang  bool
-	languages map[string]*gtk.RadioAction
+	NoActivate bool
+	encodings  map[string]*gtk.RadioAction
+	languages  map[string]*gtk.RadioAction
 
 	vbox     *gtk.VBox
 	menubar  *gtk.Widget
@@ -217,7 +216,7 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	ui.newActionStock("SaveAs", gtk.STOCK_SAVE_AS, "<control><shift>s", ui.SaveAs)
 
 	//Encodings
-	ui.newAction("Encoding", "Encoding", "", func() { ui.userEnc = true })
+	ui.newAction("Encoding", "Encoding", "", nil)
 	ui.encodings = make(map[string]*gtk.RadioAction)
 	var encodingsGroup *glib.SList
 	for n, c := range charsets {
@@ -230,7 +229,7 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	}
 
 	//Languages
-	ui.newAction("Language", "Language", "", func() { ui.userLang = true })
+	ui.newAction("Language", "Language", "", nil)
 	ui.languages = make(map[string]*gtk.RadioAction)
 	var langGroup *glib.SList
 	for section, langs := range structureLanguages() {
@@ -318,25 +317,19 @@ func (ui *UI) homogeneousTabs() {
 }
 
 func (ui *UI) changeEncodingCurrentTab(ctx *glib.CallbackContext) {
-	if !ui.userEnc {
+	if ui.NoActivate {
 		return
 	}
-
 	charset := ctx.Data().(string)
 	ui.GetCurrentTab().ChangeCurrEncoding(charset)
-
-	ui.userEnc = false
 }
 
 func (ui *UI) changeLanguageCurrentTab(ctx *glib.CallbackContext) {
-	if !ui.userLang {
+	if ui.NoActivate {
 		return
 	}
-
 	lang := ctx.Data().(string)
 	ui.GetCurrentTab().ChangeLanguage(lang)
-
-	ui.userLang = false
 }
 
 func (ui *UI) LookupTab(filename string) (*Tab, bool) {

@@ -178,17 +178,15 @@ func (ui *UI) NewTab(filename string) {
 }
 
 func (t *Tab) UpdateMenuSeleted() {
+	ui.NoActivate = true
 	if ra, ok := ui.encodings[t.Encoding]; ok {
-		// ra.btn.HandlerDisconnect(ra.id)
 		ra.SetActive(true)
-		// ra.id = ra.btn.Connect("activate", ui.changeEncodingCurrentTab, t.Encoding)
 	}
 
 	if ra, ok := ui.languages[t.Language]; ok {
-		// ra.btn.HandlerDisconnect(ra.id)
 		ra.SetActive(true)
-		// ra.id = ra.btn.Connect("activate", ui.changeLanguageCurrentTab, t.Language)
 	}
+	ui.NoActivate = false
 }
 
 func (t *Tab) Close() {
@@ -320,7 +318,7 @@ func (t *Tab) ChangeCurrEncoding(from string) {
 		return
 	}
 
-	log.Println("ChangeCurrEncoding", t.Filename, t.Encoding, from)
+	// log.Println("ChangeCurrEncoding", t.Filename, t.Encoding, from)
 
 	if t.Encoding == from {
 		return
@@ -383,7 +381,7 @@ func (t *Tab) ChangeLanguage(lang string) {
 		return
 	}
 
-	log.Println("ChangeLanguage", t.Filename, t.Language, lang)
+	// log.Println("ChangeLanguage", t.Filename, t.Language, lang)
 
 	if t.Language == lang {
 		return
