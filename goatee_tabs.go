@@ -43,6 +43,7 @@ type Tab struct {
 	sourceview   *gsv.SourceView
 	sourcebuffer *gsv.SourceBuffer
 
+	findtext         string
 	findindex        [][]int
 	findindexCurrent int
 	tagfind          *gtk.TextTag
@@ -387,8 +388,6 @@ func (t *Tab) ChangeLanguage(lang string) {
 		return
 	}
 
-	// panic(t.Filename)
-
 	t.Language = lang
 	if t.sourcebuffer != nil {
 		t.sourcebuffer.SetLanguage(langManager.GetLanguage(lang))
@@ -633,7 +632,13 @@ func (t *Tab) Find() {
 		find = regexp.MustCompile("(?i)([0-9a-z]{2})").ReplaceAllString(find, "$1[ \r\n]*")
 	}
 
-	text := t.GetText(true)
+	findtext := t.GetText(true)
+
+	//if new text not found prev, reset index
+	if findtext != t.findtext {
+		t.findindexCurrent = 0
+	}
+	t.findtext = findtext
 
 	expr := fmt.Sprintf("(?%s)%s", flags, find)
 	reg, err := regexp.Compile(expr)
@@ -642,13 +647,13 @@ func (t *Tab) Find() {
 		return
 	}
 	// log.Println(expr)
-	t.findindex = reg.FindAllStringIndex(text, conf.Search.MaxItems)
+	t.findindex = reg.FindAllStringIndex(t.findtext, conf.Search.MaxItems)
 
 	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
 	t.tagfindCurrent = t.sourcebuffer.CreateTag("findCurr", map[string]string{"background": "#eeaa00"})
 
 	for i, index := range t.findindex {
-		data := []byte(text)
+		data := []byte(t.findtext)
 		if t.Encoding != "binary" {
 			index[0] = utf8.RuneCount(data[:index[0]])
 			index[1] = utf8.RuneCount(data[:index[1]])
