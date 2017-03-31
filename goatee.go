@@ -157,7 +157,6 @@ func convertColor(col [3]int) *gdk.Color {
 }
 
 func resolveFilename(filename string) (string, error) {
-	log.Println(filename)
 	if len(filename) == 0 {
 		return filename, nil
 	}
