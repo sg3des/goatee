@@ -157,6 +157,7 @@ func convertColor(col [3]int) *gdk.Color {
 }
 
 func resolveFilename(filename string) (string, error) {
+	log.Println(filename)
 	if len(filename) == 0 {
 		return filename, nil
 	}
@@ -182,7 +183,6 @@ func resolveFilename(filename string) (string, error) {
 			filename, ok = findGVFS(u)
 			if !ok {
 				err := fmt.Errorf("faild recognized path to file")
-				errorMessage(err)
 				return "", err
 			}
 		}
@@ -199,7 +199,7 @@ func findGVFS(u *url.URL) (string, bool) {
 	}
 
 	for _, dir := range dirs {
-		log.Println(dir.Name(), u.Path, string(os.PathSeparator))
+		// log.Println(dir.Name(), u.Path, string(os.PathSeparator))
 		if !dir.IsDir() {
 			continue
 		}

@@ -33,7 +33,6 @@ type Tab struct {
 	Language string
 	ReadOnly bool
 	Dirty    bool
-	// Empty    bool
 
 	tabbox   *gtk.HBox
 	label    *gtk.Label
@@ -54,6 +53,7 @@ func (ui *UI) NewTab(filename string) {
 	filename, err := resolveFilename(filename)
 	if err != nil {
 		log.Println(err)
+		errorMessage(err)
 		return
 	}
 
