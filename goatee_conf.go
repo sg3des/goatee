@@ -52,7 +52,7 @@ type Conf struct {
 func NewConf() *Conf {
 	// default values
 	c := new(Conf)
-	c.UI.MenuBarVisible = false
+	c.UI.MenuBarVisible = true
 	c.UI.StatusBarVisible = false
 
 	c.TextView.Font = "Liberation Mono 8"
@@ -83,7 +83,7 @@ func NewConf() *Conf {
 			continue
 		}
 
-		_, err := toml.DecodeFile(configfile, &conf)
+		_, err := toml.DecodeFile(configfile, &c)
 		if err != nil {
 			log.Println("failed decode config file", configfile, "reason:", err)
 			continue
@@ -93,7 +93,7 @@ func NewConf() *Conf {
 		break
 	}
 
-	return conf
+	return c
 }
 
 func (c *Conf) Write() {
