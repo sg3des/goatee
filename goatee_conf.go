@@ -33,12 +33,12 @@ type Conf struct {
 		StyleScheme    string `toml:"style-scheme"`
 	}
 	Tabs struct {
-		Homogenous bool   `toml:"homogenous"`
-		CloseBtns  bool   `toml:"close-buttons"`
-		Height     int    `toml:"height"`
-		FGNormal   [3]int `toml:"fg-normal"`
-		FGModified [3]int `toml:"fg-modified"`
-		FGNew      [3]int `toml:"fg-new"`
+		Homogeneous bool   `toml:"homogeneous"`
+		CloseBtns   bool   `toml:"close-buttons"`
+		Height      int    `toml:"height"`
+		FGNormal    [3]int `toml:"fg-normal"`
+		FGModified  [3]int `toml:"fg-modified"`
+		FGNew       [3]int `toml:"fg-new"`
 	}
 	Search struct {
 		MaxItems int `toml:"max-items"`
@@ -62,7 +62,7 @@ func NewConf() *Conf {
 	c.TextView.IndentSpace = false
 	c.TextView.IndentWidth = 2
 
-	c.Tabs.Homogenous = true
+	c.Tabs.Homogeneous = true
 	c.Tabs.CloseBtns = true
 	c.Tabs.Height = 16
 	c.Tabs.FGNormal = [3]int{200, 200, 200}

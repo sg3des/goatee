@@ -138,7 +138,7 @@ func (ui *UI) ToggleMenuBar() {
 
 }
 func (ui *UI) ToggleStatusBar() {
-	log.Println("statusbar")
+	log.Println("statusbar not yet ready")
 	// conf.UI.StatusBarVisible = !conf.UI.StatusBarVisible
 	// ui.statusbar.SetVisible(conf.UI.StatusBarVisible)
 	// ui.menu.statusbar.SetActive(conf.UI.StatusBarVisible)
