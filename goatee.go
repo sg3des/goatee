@@ -148,7 +148,7 @@ func errorMessage(err error) {
 	m.Destroy()
 }
 
-func convertColor(col [3]int) *gdk.Color {
+func convertColor(col []int) *gdk.Color {
 	r := uint16(math.Pow(float64(col[0]), 2))
 	g := uint16(math.Pow(float64(col[1]), 2))
 	b := uint16(math.Pow(float64(col[2]), 2))
@@ -198,7 +198,6 @@ func findGVFS(u *url.URL) (string, bool) {
 	}
 
 	for _, dir := range dirs {
-		// log.Println(dir.Name(), u.Path, string(os.PathSeparator))
 		if !dir.IsDir() {
 			continue
 		}

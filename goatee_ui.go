@@ -21,8 +21,9 @@ type UI struct {
 	encodings  map[string]*gtk.RadioAction
 	languages  map[string]*gtk.RadioAction
 
-	vbox     *gtk.VBox
-	menubar  *gtk.Widget
+	vbox    *gtk.VBox
+	menubar *gtk.Widget
+
 	notebook *gtk.Notebook
 	tabs     []*Tab
 
@@ -61,100 +62,12 @@ func CreateUI() *UI {
 	ui.window.Add(ui.vbox)
 
 	ui.window.Connect("destroy", ui.Quit)
-	if conf.Tabs.Homogenous {
-		ui.window.Connect("check-resize", ui.homogeneousTabs)
-	}
 
 	ui.window.ShowAll()
 
 	ui.footer.table.SetVisible(false)
 	ui.menubar.SetVisible(conf.UI.MenuBarVisible)
 	return ui
-}
-
-func (ui *UI) Open() {
-	dialog := gtk.NewFileChooserDialog("Open File", ui.window, gtk.FILE_CHOOSER_ACTION_OPEN, gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_ACCEPT)
-
-	if dialog.Run() == gtk.RESPONSE_ACCEPT {
-		ui.NewTab(dialog.GetFilename())
-	}
-	dialog.Destroy()
-}
-func (ui *UI) Save() {
-	t := ui.GetCurrentTab()
-
-	if len(t.Filename) == 0 {
-		filename := dialogSave()
-		if len(filename) == 0 {
-			return
-		}
-
-		t.Filename = filename
-		t.label.SetText(path.Base(filename))
-		t.label.SetTooltipText(filename)
-	}
-	t.Save()
-}
-func (ui *UI) SaveAs() {
-	t := ui.GetCurrentTab()
-
-	filename := dialogSave()
-	if len(filename) == 0 {
-		return
-	}
-
-	t.Filename = filename
-	t.label.SetText(path.Base(filename))
-	t.label.SetTooltipText(filename)
-	t.Save()
-}
-
-func (ui *UI) Quit() {
-	for _, t := range ui.tabs {
-		t.File.Close()
-	}
-	gtk.MainQuit()
-}
-
-func (ui *UI) Find() {
-	ui.GetCurrentTab().Find()
-}
-func (ui *UI) FindNext() {
-	ui.GetCurrentTab().FindNext(true)
-}
-func (ui *UI) FindPrev() {
-	ui.GetCurrentTab().FindNext(false)
-}
-func (ui *UI) ReplaceOne() {
-	ui.GetCurrentTab().Replace(false)
-}
-func (ui *UI) ReplaceAll() {
-	ui.GetCurrentTab().Replace(true)
-}
-
-func (ui *UI) ToggleMenuBar() {
-	conf.UI.MenuBarVisible = !conf.UI.MenuBarVisible
-	ui.menubar.SetVisible(conf.UI.MenuBarVisible)
-
-}
-func (ui *UI) ToggleStatusBar() {
-	log.Println("statusbar not yet ready")
-	// conf.UI.StatusBarVisible = !conf.UI.StatusBarVisible
-	// ui.statusbar.SetVisible(conf.UI.StatusBarVisible)
-	// ui.menu.statusbar.SetActive(conf.UI.StatusBarVisible)
-}
-
-func dialogSave() string {
-	dialog := gtk.NewFileChooserDialog("Save File", ui.window, gtk.FILE_CHOOSER_ACTION_SAVE, gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_SAVE, gtk.RESPONSE_ACCEPT)
-
-	var filename string
-	if dialog.Run() == gtk.RESPONSE_ACCEPT {
-		filename = dialog.GetFilename()
-	}
-
-	dialog.Destroy()
-
-	return filename
 }
 
 func (ui *UI) createUIManager() *gtk.Widget {
@@ -295,25 +208,112 @@ func (ui *UI) newRadioAction(dst, label, accel string, state bool, n int, f inte
 	return action
 }
 
-func (ui *UI) homogeneousTabs() {
-	if len(ui.tabs) == 0 || !conf.Tabs.Homogenous {
+func (ui *UI) NewTab(filename string) {
+	t := NewTab(filename)
+
+	n := ui.notebook.AppendPage(t.swin, t.tab)
+	ui.notebook.ShowAll()
+	ui.notebook.SetCurrentPage(n)
+
+	ui.notebook.ChildSet(t.swin, "tab-expand", conf.Tabs.Homogeneous)
+
+	t.sourceview.GrabFocus()
+	t.UpdateMenuSeleted()
+
+	ui.tabs = append(ui.tabs, t)
+}
+
+func (ui *UI) ShowTab(t *Tab) {
+	log.Println("ShowTab", t.Filename)
+	for _, uitab := range ui.tabs {
+		uitab.swin.Hide()
+	}
+	t.swin.ShowAll()
+}
+
+func (ui *UI) Open() {
+	dialog := gtk.NewFileChooserDialog("Open File", ui.window, gtk.FILE_CHOOSER_ACTION_OPEN, gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_ACCEPT)
+
+	if dialog.Run() == gtk.RESPONSE_ACCEPT {
+		ui.NewTab(dialog.GetFilename())
+	}
+	dialog.Destroy()
+}
+func (ui *UI) Save() {
+	t := ui.GetCurrentTab()
+
+	if len(t.Filename) == 0 {
+		filename := dialogSave()
+		if len(filename) == 0 {
+			return
+		}
+
+		t.Filename = filename
+		t.label.SetText(path.Base(filename))
+		t.label.SetTooltipText(filename)
+	}
+	t.Save()
+}
+func (ui *UI) SaveAs() {
+	t := ui.GetCurrentTab()
+
+	filename := dialogSave()
+	if len(filename) == 0 {
 		return
 	}
 
-	var width, height int
-	ui.window.GetSize(&width, &height)
+	t.Filename = filename
+	t.label.SetText(path.Base(filename))
+	t.label.SetTooltipText(filename)
+	t.Save()
+}
 
-	tabwidth := (width - len(ui.tabs)*6) / len(ui.tabs)
-	leftwidth := (width - len(ui.tabs)*6) % len(ui.tabs)
-
+func (ui *UI) Quit() {
 	for _, t := range ui.tabs {
-		if leftwidth > 0 {
-			t.tabbox.SetSizeRequest(tabwidth+1, conf.Tabs.Height)
-			leftwidth--
-		} else {
-			t.tabbox.SetSizeRequest(tabwidth, conf.Tabs.Height)
-		}
+		t.File.Close()
 	}
+	gtk.MainQuit()
+}
+
+func (ui *UI) Find() {
+	ui.GetCurrentTab().Find()
+}
+func (ui *UI) FindNext() {
+	ui.GetCurrentTab().FindNext(true)
+}
+func (ui *UI) FindPrev() {
+	ui.GetCurrentTab().FindNext(false)
+}
+func (ui *UI) ReplaceOne() {
+	ui.GetCurrentTab().Replace(false)
+}
+func (ui *UI) ReplaceAll() {
+	ui.GetCurrentTab().Replace(true)
+}
+
+func (ui *UI) ToggleMenuBar() {
+	conf.UI.MenuBarVisible = !conf.UI.MenuBarVisible
+	ui.menubar.SetVisible(conf.UI.MenuBarVisible)
+
+}
+func (ui *UI) ToggleStatusBar() {
+	log.Println("statusbar not yet ready")
+	// conf.UI.StatusBarVisible = !conf.UI.StatusBarVisible
+	// ui.statusbar.SetVisible(conf.UI.StatusBarVisible)
+	// ui.menu.statusbar.SetActive(conf.UI.StatusBarVisible)
+}
+
+func dialogSave() string {
+	dialog := gtk.NewFileChooserDialog("Save File", ui.window, gtk.FILE_CHOOSER_ACTION_SAVE, gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_SAVE, gtk.RESPONSE_ACCEPT)
+
+	var filename string
+	if dialog.Run() == gtk.RESPONSE_ACCEPT {
+		filename = dialog.GetFilename()
+	}
+
+	dialog.Destroy()
+
+	return filename
 }
 
 func (ui *UI) changeEncodingCurrentTab(ctx *glib.CallbackContext) {
@@ -345,10 +345,15 @@ func (ui *UI) LookupTab(filename string) (*Tab, bool) {
 func (ui *UI) CloseCurrentTab() {
 	n := ui.notebook.GetCurrentPage()
 	ui.CloseTab(n)
+	// ui.CloseTab(0)
 }
 
 func (ui *UI) CloseTab(n int) {
-	ui.tabs[n].Close()
+	t := ui.tabs[n]
+
+	ui.notebook.RemovePage(t.swin, n)
+	t.Close()
+	ui.tabs = append(ui.tabs[:n], ui.tabs[n+1:]...)
 
 	if len(ui.tabs) == 0 {
 		gtk.MainQuit()
@@ -369,7 +374,7 @@ func (ui *UI) GetCurrentTab() *Tab {
 func (ui *UI) onSwitchPage(ctx *glib.CallbackContext) {
 	n, _ := strconv.Atoi(fmt.Sprintf("%v", ctx.Args(1)))
 	if n < len(ui.tabs) {
-		// ui.tabs[n].UpdateMenuSeleted()
+		ui.tabs[n].UpdateMenuSeleted()
 	}
 }
 

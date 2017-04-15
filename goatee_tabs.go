@@ -34,7 +34,7 @@ type Tab struct {
 	ReadOnly bool
 	Dirty    bool
 
-	tabbox   *gtk.HBox
+	tab      *gtk.HBox
 	label    *gtk.Label
 	closeBtn *gtk.Button
 
@@ -49,7 +49,7 @@ type Tab struct {
 	tagfindCurrent   *gtk.TextTag
 }
 
-func (ui *UI) NewTab(filename string) {
+func NewTab(filename string) (t *Tab) {
 	filename, err := resolveFilename(filename)
 	if err != nil {
 		log.Println(err)
@@ -58,8 +58,9 @@ func (ui *UI) NewTab(filename string) {
 	}
 
 	if len(filename) > 0 {
+		var ok bool
 		//reload if this file already open
-		if t, ok := ui.LookupTab(filename); ok {
+		if t, ok = ui.LookupTab(filename); ok {
 			text, err := t.ReadFile(filename)
 			if err != nil {
 				errorMessage(err)
@@ -74,7 +75,7 @@ func (ui *UI) NewTab(filename string) {
 		}
 	}
 
-	t := &Tab{
+	t = &Tab{
 		Encoding: CHARSET_UTF8,
 		Language: "sh",
 	}
@@ -120,8 +121,9 @@ func (ui *UI) NewTab(filename string) {
 		t.SetTabFGColor(conf.Tabs.FGNormal)
 	}
 
-	t.tabbox = gtk.NewHBox(false, 0)
-	t.tabbox.PackStart(t.label, true, true, 0)
+	t.tab = gtk.NewHBox(false, 0)
+	t.tab.PackStart(t.label, true, true, 0)
+	t.tab.SetSizeRequest(conf.Tabs.Height, conf.Tabs.Height)
 
 	if conf.Tabs.CloseBtns {
 		t.closeBtn = gtk.NewButton()
@@ -129,13 +131,12 @@ func (ui *UI) NewTab(filename string) {
 		t.closeBtn.SetRelief(gtk.RELIEF_NONE)
 		t.closeBtn.SetSizeRequest(conf.Tabs.Height, conf.Tabs.Height)
 		t.closeBtn.Clicked(t.Close)
-		t.tabbox.PackEnd(t.closeBtn, false, false, 0)
+		t.tab.PackStart(t.closeBtn, false, false, 0)
 	}
 
-	t.tabbox.ShowAll()
+	t.tab.ShowAll()
 
-	// log.Println(os.IsExist(errStat), stat.IsDir())
-	if len(t.Filename) > 0 { //&& errStat == nil && !stat.IsDir()
+	if len(t.Filename) > 0 {
 
 		stat, err := os.Stat(filename)
 		if err == nil && !stat.IsDir() {
@@ -168,14 +169,7 @@ func (ui *UI) NewTab(filename string) {
 
 	t.sourcebuffer.Connect("changed", t.onchange)
 
-	ui.tabs = append(ui.tabs, t)
-
-	n := ui.notebook.AppendPage(t.swin, t.tabbox)
-	ui.notebook.ShowAll()
-	ui.notebook.SetCurrentPage(n)
-	t.sourceview.GrabFocus()
-
-	t.UpdateMenuSeleted()
+	return t
 }
 
 func (t *Tab) UpdateMenuSeleted() {
@@ -191,13 +185,11 @@ func (t *Tab) UpdateMenuSeleted() {
 }
 
 func (t *Tab) Close() {
-	n := ui.notebook.PageNum(t.swin)
+	if t.File != nil {
+		t.File.Close()
+	}
 
-	ui.notebook.RemovePage(ui.tabs[n].swin, n)
-	ui.tabs[n].File.Close()
-	ui.tabs = append(ui.tabs[:n], ui.tabs[n+1:]...)
-
-	// ui.CloseTab(n)
+	t = nil
 }
 
 func (t *Tab) ReadFile(filename string) (string, error) {
@@ -529,7 +521,7 @@ func (t *Tab) onchange() {
 	// t.Empty = false
 }
 
-func (t *Tab) SetTabFGColor(col [3]int) {
+func (t *Tab) SetTabFGColor(col []int) {
 	color := convertColor(col)
 	t.label.ModifyFG(gtk.STATE_NORMAL, color)
 	t.label.ModifyFG(gtk.STATE_PRELIGHT, color)

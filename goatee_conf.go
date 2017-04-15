@@ -1,17 +1,19 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"math"
 	"os"
 	"path"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/gtk"
+	"github.com/naoina/toml"
 )
 
 //Conf structure contains configuration
@@ -33,12 +35,12 @@ type Conf struct {
 		StyleScheme    string `toml:"style-scheme"`
 	}
 	Tabs struct {
-		Homogeneous bool   `toml:"homogeneous"`
-		CloseBtns   bool   `toml:"close-buttons"`
-		Height      int    `toml:"height"`
-		FGNormal    [3]int `toml:"fg-normal"`
-		FGModified  [3]int `toml:"fg-modified"`
-		FGNew       [3]int `toml:"fg-new"`
+		Homogeneous bool  `toml:"homogeneous"`
+		CloseBtns   bool  `toml:"close-buttons"`
+		Height      int   `toml:"height"`
+		FGNormal    []int `toml:"fg-normal"`
+		FGModified  []int `toml:"fg-modified"`
+		FGNew       []int `toml:"fg-new"`
 	}
 	Search struct {
 		MaxItems int `toml:"max-items"`
@@ -64,10 +66,10 @@ func NewConf() *Conf {
 
 	c.Tabs.Homogeneous = true
 	c.Tabs.CloseBtns = true
-	c.Tabs.Height = 16
-	c.Tabs.FGNormal = [3]int{200, 200, 200}
-	c.Tabs.FGModified = [3]int{220, 20, 20}
-	c.Tabs.FGNew = [3]int{250, 200, 10}
+	c.Tabs.Height = 24
+	c.Tabs.FGNormal = []int{200, 200, 200}
+	c.Tabs.FGModified = []int{220, 20, 20}
+	c.Tabs.FGNew = []int{250, 200, 10}
 
 	c.Search.MaxItems = 1024
 
@@ -79,13 +81,14 @@ func NewConf() *Conf {
 		path.Join(os.Getenv("HOME"), ".config", "goatee", "goatee.conf"),
 		"goatee.conf",
 	} {
-		if _, err := os.Stat(configfile); err != nil {
+		data, err := ioutil.ReadFile(configfile)
+		if err != nil {
 			continue
 		}
 
-		_, err := toml.DecodeFile(configfile, &c)
+		err = toml.Unmarshal(data, &c)
 		if err != nil {
-			log.Println("failed decode config file", configfile, "reason:", err)
+			log.Printf("failed decode config file '%s', reason: %s", configfile, err)
 			continue
 		}
 
@@ -99,16 +102,20 @@ func NewConf() *Conf {
 func (c *Conf) Write() {
 	c.CreateDirConfig()
 
-	if len(c.filename) == 0 {
+	log.Println("write", c.filename)
+
+	if c.filename == "" {
 		return
 	}
 
-	f, err := os.OpenFile(c.filename, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0600)
+	data, err := toml.Marshal(&c)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	if err := toml.NewEncoder(f).Encode(c); err != nil {
+
+	err = ioutil.WriteFile(c.filename, data, 0644)
+	if err != nil {
 		log.Println(err)
 		return
 	}
@@ -222,8 +229,8 @@ func (c *Conf) CreateWindow() {
 				widget.Connect("changed", w.UpdateValue)
 
 				hbox.PackEnd(widget, false, false, 5)
-			case reflect.TypeOf([3]int{}).Kind(): //color
-				color := convertColor(val.Interface().([3]int))
+			case reflect.TypeOf([]int{}).Kind(): //color
+				color := convertColor(val.Interface().([]int))
 				widget := gtk.NewColorButtonWithColor(color)
 				widget.SetName(field.Name)
 				widget.SetSizeRequest(120, 20)
@@ -273,7 +280,8 @@ func (w *ConfWidget) UpdateValue() {
 	case w.entry != nil:
 		w.Field.SetString(w.entry.GetText())
 	case w.spnbtn != nil:
-		w.Field.SetInt(int64(w.spnbtn.GetValue()))
+		n, _ := strconv.Atoi(w.spnbtn.Entry.GetText())
+		w.Field.SetInt(int64(n))
 	case w.colbtn != nil:
 		col := w.colbtn.GetColor()
 		r := int(math.Sqrt(float64(col.Red())))
