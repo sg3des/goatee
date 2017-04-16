@@ -123,7 +123,7 @@ func NewTab(filename string) (t *Tab) {
 
 	t.tab = gtk.NewHBox(false, 0)
 	t.tab.PackStart(t.label, true, true, 0)
-	t.tab.SetSizeRequest(conf.Tabs.Height, conf.Tabs.Height)
+	t.tab.SetSizeRequest(-1, conf.Tabs.Height)
 
 	if conf.Tabs.CloseBtns {
 		t.closeBtn = gtk.NewButton()
