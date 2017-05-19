@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -52,8 +53,15 @@ type Conf struct {
 
 //NewConf set default values for configuration and parse config file
 func NewConf() *Conf {
+	confdir := os.Getenv("XDG_CONFIG_HOME")
+	if confdir == "" {
+		confdir = path.Join(os.Getenv("HOME"), ".config")
+	}
+	confdir = path.Join(confdir, "goatee")
+
 	// default values
 	c := new(Conf)
+	c.filename = path.Join(confdir, "goatee.conf")
 	c.UI.MenuBarVisible = true
 	c.UI.StatusBarVisible = false
 
@@ -66,7 +74,7 @@ func NewConf() *Conf {
 
 	c.Tabs.Homogeneous = true
 	c.Tabs.CloseBtns = true
-	c.Tabs.Height = 24
+	c.Tabs.Height = 16
 	c.Tabs.FGNormal = []int{200, 200, 200}
 	c.Tabs.FGModified = []int{220, 20, 20}
 	c.Tabs.FGNew = []int{250, 200, 10}
@@ -77,8 +85,7 @@ func NewConf() *Conf {
 
 	//parse config files
 	for _, configfile := range []string{
-		path.Join(os.Getenv("XDG_CONFIG_HOME"), "goatee", "goatee.conf"),
-		path.Join(os.Getenv("HOME"), ".config", "goatee", "goatee.conf"),
+		path.Join(confdir, "goatee.conf"),
 		"goatee.conf",
 	} {
 		data, err := ioutil.ReadFile(configfile)
@@ -100,9 +107,9 @@ func NewConf() *Conf {
 }
 
 func (c *Conf) Write() {
-	c.CreateDirConfig()
+	os.MkdirAll(filepath.Dir(c.filename), 0755)
 
-	log.Println("write", c.filename)
+	log.Println("write config to:", c.filename)
 
 	if c.filename == "" {
 		return
@@ -119,36 +126,6 @@ func (c *Conf) Write() {
 		log.Println(err)
 		return
 	}
-}
-
-func (c *Conf) CreateDirConfig() {
-	//if file already created nothing do
-	if len(c.filename) > 0 {
-		return
-	}
-
-	dirConf := os.Getenv("XDG_CONFIG_HOME")
-	dirHome := os.Getenv("HOME")
-
-	if len(dirConf) == 0 && len(dirHome) != 0 {
-		dirConf = path.Join(dirHome, ".config")
-		stat, err := os.Stat(dirConf)
-		if err != nil || stat.IsDir() {
-			return
-		}
-	}
-
-	if len(dirConf) == 0 {
-		return
-	}
-
-	dirGoateeConf := path.Join(dirConf, "goatee")
-	err := os.MkdirAll(dirGoateeConf, 0700)
-	if err != nil {
-		log.Println("failed create directory for save configuration,reason:", err)
-		return
-	}
-	c.filename = path.Join(dirGoateeConf, "goatee.conf")
 }
 
 //OpenWindow open window configuration
@@ -288,7 +265,7 @@ func (w *ConfWidget) UpdateValue() {
 		g := int(math.Sqrt(float64(col.Green())))
 		b := int(math.Sqrt(float64(col.Blue())))
 
-		w.Field.Set(reflect.ValueOf([3]int{r, g, b}))
+		w.Field.Set(reflect.ValueOf([]int{r, g, b}))
 	}
 }
 
