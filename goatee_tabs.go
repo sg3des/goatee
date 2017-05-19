@@ -663,6 +663,10 @@ func (t *Tab) FindNext(next bool) {
 		return
 	}
 
+	if t.findindexCurrent > len(t.findindex) {
+		t.findindexCurrent = len(t.findindex) - 1
+	}
+
 	t.Highlight(t.findindex[t.findindexCurrent], false)
 
 	if next {
