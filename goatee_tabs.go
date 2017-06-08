@@ -602,6 +602,10 @@ func (t *Tab) Find() {
 		return
 	}
 
+	if !ui.footer.findEntry.HasFocus() {
+		return
+	}
+
 	flags := "ms"
 	if ui.footer.caseBtn.GetActive() {
 		flags += "i"
