@@ -71,7 +71,7 @@ func NewTab(filename string) (t *Tab) {
 			t.Dirty = false
 			t.SetTabFGColor(conf.Tabs.FGNormal)
 			//TODO: reopen
-			return
+			return nil
 		}
 	}
 
@@ -495,19 +495,6 @@ func (t *Tab) DnDHandler(ctx *glib.CallbackContext) {
 				fmt.Println(err)
 				continue
 			}
-			// u, err := url.Parse(filename)
-			// if err != nil {
-			// 	fmt.Println("failed parse path to file", err)
-			// 	continue
-			// }
-
-			// if len(u.Scheme) == 0 {
-			// 	return
-			// } else if u.Scheme == "file" {
-			// 	filename = u.Path
-			// } else {
-			// 	filename = path.Join(gvfsPath, fmt.Sprintf("%s:host=%s", u.Scheme, u.Host), u.Path)
-			// }
 
 			ui.NewTab(filename)
 		}

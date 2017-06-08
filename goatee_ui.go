@@ -210,6 +210,9 @@ func (ui *UI) newRadioAction(dst, label, accel string, state bool, n int, f inte
 
 func (ui *UI) NewTab(filename string) {
 	t := NewTab(filename)
+	if t == nil {
+		return
+	}
 
 	n := ui.notebook.AppendPage(t.swin, t.tab)
 	ui.notebook.ShowAll()
