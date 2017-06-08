@@ -42,6 +42,7 @@ type Tab struct {
 	sourceview   *gsv.SourceView
 	sourcebuffer *gsv.SourceBuffer
 
+	find             string
 	findtext         string
 	findindex        [][]int
 	findindexCurrent int
@@ -374,8 +375,6 @@ func (t *Tab) ChangeLanguage(lang string) {
 		return
 	}
 
-	// log.Println("ChangeLanguage", t.Filename, t.Language, lang)
-
 	if t.Language == lang {
 		return
 	}
@@ -475,7 +474,6 @@ func (t *Tab) DetectLanguage(data []byte) string {
 	// }
 
 	return "sh"
-	// return strings.ToLower(gsv.NewSourceLanguageManager().GuessLanguage(t.Filename, "").GetName())
 }
 
 func (t *Tab) DragAndDrop() {
@@ -505,6 +503,8 @@ func (t *Tab) onchange() {
 	// t.Data = t.GetText()
 	t.Dirty = true
 	t.SetTabFGColor(conf.Tabs.FGModified)
+
+	t.Find()
 	// t.Empty = false
 }
 
@@ -575,23 +575,28 @@ func (t *Tab) GetText(hiddenChars bool) string {
 	return t.sourcebuffer.GetText(&start, &end, hiddenChars)
 }
 
-func (t *Tab) ClearTags() {
+func (t *Tab) ClearFind() {
+	t.find = ""
+	t.findtext = ""
+	t.findindex = nil
+	t.findindexCurrent = 0
+
 	tabletag := t.sourcebuffer.GetTagTable()
 
-	if tag := tabletag.Lookup("find"); tag != nil {
+	if tag := tabletag.Lookup("find"); tag != nil && tag.GTextTag != nil {
 		tabletag.Remove(tag)
 	}
 
-	if tag := tabletag.Lookup("findCurr"); tag != nil {
+	if tag := tabletag.Lookup("findCurr"); tag != nil && tag.GTextTag != nil {
 		tabletag.Remove(tag)
 	}
 }
 
 func (t *Tab) Find() {
-	t.ClearTags()
+	t.ClearFind()
 
-	find := ui.footer.findEntry.GetText()
-	if len(find) == 0 {
+	t.find = ui.footer.findEntry.GetText()
+	if len(t.find) == 0 || !ui.footer.table.GetVisible() {
 		t.tagfind = nil
 		t.tagfindCurrent = nil
 		return
@@ -603,12 +608,12 @@ func (t *Tab) Find() {
 	}
 
 	if !ui.footer.regBtn.GetActive() {
-		find = regexp.QuoteMeta(find)
+		t.find = regexp.QuoteMeta(t.find)
 	}
 
 	if t.Encoding == "binary" {
-		find = regexp.MustCompile("[ \n\r]+").ReplaceAllString(find, "")
-		find = regexp.MustCompile("(?i)([0-9a-z]{2})").ReplaceAllString(find, "$1[ \r\n]*")
+		t.find = regexp.MustCompile("[ \n\r]+").ReplaceAllString(t.find, "")
+		t.find = regexp.MustCompile("(?i)([0-9a-z]{2})").ReplaceAllString(t.find, "$1[ \r\n]*")
 	}
 
 	findtext := t.GetText(true)
@@ -619,7 +624,7 @@ func (t *Tab) Find() {
 	}
 	t.findtext = findtext
 
-	expr := fmt.Sprintf("(?%s)%s", flags, find)
+	expr := fmt.Sprintf("(?%s)%s", flags, t.find)
 	reg, err := regexp.Compile(expr)
 	if err != nil {
 		log.Println("invalid search query,", err)
