@@ -607,7 +607,7 @@ func (t *Tab) Find() {
 	}
 
 	flags := "ms"
-	if ui.footer.caseBtn.GetActive() {
+	if !ui.footer.caseBtn.GetActive() {
 		flags += "i"
 	}
 
