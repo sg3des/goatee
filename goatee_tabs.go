@@ -42,10 +42,14 @@ type Tab struct {
 	sourceview   *gsv.SourceView
 	sourcebuffer *gsv.SourceBuffer
 
+	cursorPos gtk.TextIter
+
 	find             string
 	findtext         string
 	findindex        [][]int
 	findindexCurrent int
+	findoffset       int
+	findwrap         bool
 	tagfind          *gtk.TextTag
 	tagfindCurrent   *gtk.TextTag
 }
@@ -169,6 +173,7 @@ func NewTab(filename string) (t *Tab) {
 	}
 
 	t.sourcebuffer.Connect("changed", t.onchange)
+	t.sourcebuffer.Connect("notify::cursor-position", t.onMoveCursor)
 
 	return t
 }
@@ -602,7 +607,7 @@ func (t *Tab) Find() {
 		return
 	}
 
-	if !ui.footer.findEntry.HasFocus() {
+	if !ui.footer.table.GetVisible() {
 		return
 	}
 
@@ -634,7 +639,7 @@ func (t *Tab) Find() {
 		log.Println("invalid search query,", err)
 		return
 	}
-	// log.Println(expr)
+
 	t.findindex = reg.FindAllStringIndex(t.findtext, conf.Search.MaxItems)
 
 	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
@@ -645,13 +650,24 @@ func (t *Tab) Find() {
 		if t.Encoding != "binary" {
 			index[0] = utf8.RuneCount(data[:index[0]])
 			index[1] = utf8.RuneCount(data[:index[1]])
+			t.findindex[i] = index
 		}
 		if i == 0 {
-			t.Highlight(index, true)
+			t.Highlight(i, true)
 		} else {
-			t.Highlight(index, false)
+			t.Highlight(i, false)
 		}
 	}
+}
+
+func (t *Tab) onMoveCursor() {
+	mark := t.sourcebuffer.GetInsert()
+	t.sourcebuffer.GetIterAtMark(&t.cursorPos, mark)
+	t.findoffset = t.cursorPos.GetOffset()
+	t.findwrap = false
+
+	t.Highlight(t.findindexCurrent, false)
+	t.findindexCurrent = -1
 }
 
 func (t *Tab) FindNext(next bool) {
@@ -663,25 +679,43 @@ func (t *Tab) FindNext(next bool) {
 		t.findindexCurrent = len(t.findindex) - 1
 	}
 
-	t.Highlight(t.findindex[t.findindexCurrent], false)
+	t.Highlight(t.findindexCurrent, false)
 
 	if next {
 		t.findindexCurrent++
+		if t.findindexCurrent >= len(t.findindex) {
+			t.findindexCurrent = 0
+			t.findwrap = true
+		}
+
 	} else {
 		t.findindexCurrent--
+		if t.findindexCurrent < 0 {
+			t.findindexCurrent = len(t.findindex) - 1
+		}
 	}
 
-	if t.findindexCurrent >= len(t.findindex) {
-		t.findindexCurrent = 0
-	}
-	if t.findindexCurrent < 0 {
-		t.findindexCurrent = len(t.findindex) - 1
+	index := t.findindex[t.findindexCurrent]
+	if !t.findwrap {
+		for index[1] < t.findoffset {
+			t.findindexCurrent++
+			if t.findindexCurrent >= len(t.findindex) {
+				t.findindexCurrent = 0
+				t.findwrap = true
+				break
+			}
+			index = t.findindex[t.findindexCurrent]
+		}
 	}
 
-	t.Highlight(t.findindex[t.findindexCurrent], true)
+	t.Highlight(t.findindexCurrent, true)
 }
 
-func (t *Tab) Highlight(index []int, current bool) {
+func (t *Tab) Highlight(i int, current bool) {
+	if i >= len(t.findindex) || i < 0 {
+		return
+	}
+	index := t.findindex[i]
 	var start gtk.TextIter
 	var end gtk.TextIter
 	t.sourcebuffer.GetIterAtOffset(&start, index[0])
