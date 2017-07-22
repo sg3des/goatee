@@ -247,6 +247,12 @@ func (ui *UI) ShowTab(t *Tab) {
 	t.swin.ShowAll()
 }
 
+func (ui *UI) TabsUpdateConf() {
+	for _, t := range ui.tabs {
+		t.ApplyConf()
+	}
+}
+
 func (ui *UI) Open() {
 	dialog := gtk.NewFileChooserDialog("Open File", ui.window, gtk.FILE_CHOOSER_ACTION_OPEN, gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_ACCEPT)
 

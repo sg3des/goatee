@@ -22,8 +22,9 @@ import (
 
 //Conf structure contains configuration
 type Conf struct {
-	window   *gtk.Window `toml:",omitempty"`
-	filename string      `toml:",omitempty"`
+	window        *gtk.Window                   `toml:",omitempty"`
+	filename      string                        `toml:",omitempty"`
+	schemeManager *gsv.SourceStyleSchemeManager `toml:",omitempty"`
 
 	UI struct {
 		MenuBarVisible   bool `toml:"menubar-visible" wgt:"checkbox"`
@@ -36,7 +37,7 @@ type Conf struct {
 		WordWrap       bool   `toml:"word-wrap" wgt:"checkbox"`
 		IndentSpace    bool   `toml:"indent-space" wgt:"checkbox"`
 		IndentWidth    int    `toml:"indent-width" wgt:"int"`
-		StyleScheme    string `toml:"style-scheme" wgt:"styles"`
+		StyleScheme    string `toml:"style-scheme" wgt:"schemes"`
 	}
 	Tabs struct {
 		Homogeneous bool  `toml:"homogeneous" wgt:"checkbox"`
@@ -70,6 +71,7 @@ func NewConf() *Conf {
 	// default values
 	c := new(Conf)
 	c.filename = path.Join(confdir, "goatee.conf")
+	c.schemeManager = gsv.SourceStyleSchemeManagerGetDefault()
 	c.UI.MenuBarVisible = true
 	c.UI.StatusBarVisible = false
 
@@ -239,8 +241,8 @@ func (c *Conf) newWidget(v reflect.Value, f reflect.StructField) (*gtk.Label, gt
 		w.fntbtn.SetFontName(v.String())
 		w.fntbtn.Connect("font-set", w.UpdateValue)
 
-	case "styles":
-		schemes := gsv.SourceStyleSchemeManagerGetDefault().GetSchemeIds()
+	case "schemes":
+		schemes := c.schemeManager.GetSchemeIds()
 		scheme := v.String()
 
 		w.cmbbox = gtk.NewComboBoxText()
@@ -305,6 +307,8 @@ func (w *ConfWidget) UpdateValue() {
 	case w.cmbbox != nil:
 		w.Field.SetString(w.cmbbox.GetActiveText())
 	}
+
+	ui.TabsUpdateConf()
 }
 
 func (w *ConfWidget) GetWidget() gtk.IWidget {

@@ -96,7 +96,6 @@ func NewTab(filename string) (t *Tab) {
 		ct := ui.GetCurrentTab()
 		if ct != nil && len(ct.Filename) == 0 && !ct.Dirty {
 			ct.Close()
-			// ui.CloseCurrentTab()
 		}
 	}
 
@@ -105,13 +104,7 @@ func NewTab(filename string) (t *Tab) {
 	t.swin.SetShadowType(gtk.SHADOW_IN)
 
 	t.sourcebuffer = gsv.NewSourceBuffer()
-
-	t.sourcebuffer.SetStyleScheme(gsv.NewSourceStyleSchemeManager().GetScheme(conf.TextView.StyleScheme))
-
 	t.sourceview = gsv.NewSourceViewWithBuffer(t.sourcebuffer)
-	t.sourceview.SetHighlightCurrentLine(conf.TextView.LineHightlight)
-	t.sourceview.ModifyFontEasy(conf.TextView.Font)
-	t.sourceview.SetShowLineNumbers(conf.TextView.LineNumbers)
 
 	t.DragAndDrop()
 
@@ -120,26 +113,8 @@ func NewTab(filename string) (t *Tab) {
 	t.label = gtk.NewLabel(path.Base(filename))
 	t.label.SetTooltipText(filename)
 
-	if len(t.Filename) == 0 {
-		t.SetTabFGColor(conf.Tabs.FGNew)
-	} else {
-		t.SetTabFGColor(conf.Tabs.FGNormal)
-	}
-
 	t.tab = gtk.NewHBox(false, 0)
 	t.tab.PackStart(t.label, true, true, 0)
-	t.tab.SetSizeRequest(-1, conf.Tabs.Height)
-
-	if conf.Tabs.CloseBtns {
-		t.closeBtn = gtk.NewButton()
-		t.closeBtn.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
-		t.closeBtn.SetRelief(gtk.RELIEF_NONE)
-		t.closeBtn.SetSizeRequest(conf.Tabs.Height, conf.Tabs.Height)
-		t.closeBtn.Clicked(t.Close)
-		t.tab.PackStart(t.closeBtn, false, false, 0)
-	}
-
-	t.tab.ShowAll()
 
 	if len(t.Filename) > 0 {
 
@@ -163,6 +138,48 @@ func NewTab(filename string) (t *Tab) {
 		t.sourcebuffer.SetLanguage(langManager.GetLanguage(t.Language))
 	}
 
+	t.ApplyConf()
+
+	t.tab.ShowAll()
+
+	t.sourcebuffer.Connect("changed", t.onchange)
+	t.sourcebuffer.Connect("notify::cursor-position", t.onMoveCursor)
+
+	return t
+}
+
+func (t *Tab) ApplyConf() {
+	t.sourcebuffer.SetStyleScheme(conf.schemeManager.GetScheme(conf.TextView.StyleScheme))
+
+	t.sourceview.SetHighlightCurrentLine(conf.TextView.LineHightlight)
+	t.sourceview.ModifyFontEasy(conf.TextView.Font)
+	t.sourceview.SetShowLineNumbers(conf.TextView.LineNumbers)
+
+	if len(t.Filename) == 0 {
+		t.SetTabFGColor(conf.Tabs.FGNew)
+	} else {
+		t.SetTabFGColor(conf.Tabs.FGNormal)
+	}
+
+	t.tab.SetSizeRequest(-1, conf.Tabs.Height)
+
+	if conf.Tabs.CloseBtns {
+		if t.closeBtn == nil {
+			t.closeBtn = gtk.NewButton()
+			t.closeBtn.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
+			t.closeBtn.SetRelief(gtk.RELIEF_NONE)
+			t.closeBtn.Clicked(t.Close)
+			t.tab.PackStart(t.closeBtn, false, false, 0)
+		}
+
+		t.closeBtn.ShowAll()
+		t.closeBtn.SetSizeRequest(conf.Tabs.Height, conf.Tabs.Height)
+	} else {
+		if t.closeBtn != nil {
+			t.closeBtn.HideAll()
+		}
+	}
+
 	if t.Encoding != CHARSET_BINARY {
 		t.sourceview.SetTabWidth(uint(conf.TextView.IndentWidth))
 		t.sourceview.SetInsertSpacesInsteadOfTabs(conf.TextView.IndentSpace)
@@ -172,10 +189,6 @@ func NewTab(filename string) (t *Tab) {
 		}
 	}
 
-	t.sourcebuffer.Connect("changed", t.onchange)
-	t.sourcebuffer.Connect("notify::cursor-position", t.onMoveCursor)
-
-	return t
 }
 
 func (t *Tab) UpdateMenuSeleted() {
