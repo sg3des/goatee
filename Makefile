@@ -8,7 +8,7 @@ get:
 	go get ./...
 
 build:
-	go build -ldflags="-s -w"
+	go build -ldflags="-s -w" -gcflags="-trimpath=${GOPATH}/src" -asmflags="-trimpath=${GOPATH}/src"
 
 goinstall:
 	go install
