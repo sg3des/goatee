@@ -13,52 +13,36 @@ import (
 
 type UI struct {
 	window *gtk.Window
+	vbox   *gtk.VBox
 
-	accelGroup  *gtk.AccelGroup
-	actionGroup *gtk.ActionGroup
+	menu     *Menu
+	notebook *gtk.Notebook
+	tabs     []*Tab
+	footer   *Footer
 
 	NoActivate bool
 	encodings  map[string]*gtk.RadioAction
 	languages  map[string]*gtk.RadioAction
-
-	vbox    *gtk.VBox
-	menubar *gtk.Widget
-
-	notebook *gtk.Notebook
-	tabs     []*Tab
-
-	footer struct {
-		table *gtk.Table
-
-		findEntry *gtk.Entry
-		replEntry *gtk.Entry
-
-		regBtn  *gtk.ToggleButton
-		caseBtn *gtk.ToggleButton
-
-		findNextBtn *gtk.Button
-		findPrevBtn *gtk.Button
-
-		replBtn    *gtk.Button
-		replAllBtn *gtk.Button
-
-		closeBtn *gtk.Button
-	}
 }
 
 func CreateUI() *UI {
-	ui := &UI{}
+	ui := new(UI)
 	ui.window = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	ui.window.SetDefaultSize(600, 300)
 	ui.window.SetSizeRequest(100, 100)
 
+	ui.menu = NewMenu(ui.window)
+	ui.footer = NewFooter(ui.menu.accelGroup)
+	ui.SetActions()
+
 	ui.vbox = gtk.NewVBox(false, 0)
-	ui.vbox.PackStart(ui.createUIManager(), false, false, 0)
+	ui.vbox.PackStart(ui.menu.GetMenubar(), false, false, 0)
 
 	ui.notebook = gtk.NewNotebook()
 	ui.notebook.Connect("switch-page", ui.onSwitchPage)
 	ui.vbox.PackStart(ui.notebook, true, true, 0)
-	ui.vbox.PackStart(ui.createFooter(), false, false, 0)
+
+	ui.vbox.PackStart(ui.footer.table, false, false, 0)
 	ui.window.Add(ui.vbox)
 
 	ui.window.Connect("destroy", ui.Quit)
@@ -66,11 +50,20 @@ func CreateUI() *UI {
 	ui.window.ShowAll()
 
 	ui.footer.table.SetVisible(false)
-	ui.menubar.SetVisible(conf.UI.MenuBarVisible)
+	ui.menu.menubar.SetVisible(conf.UI.MenuBarVisible)
+
 	return ui
 }
 
-func (ui *UI) createUIManager() *gtk.Widget {
+type Menu struct {
+	uiManager   *gtk.UIManager
+	accelGroup  *gtk.AccelGroup
+	actionGroup *gtk.ActionGroup
+
+	menubar *gtk.Widget
+}
+
+func NewMenu(w *gtk.Window) *Menu {
 	UIxml := `
 <ui>
 	<menubar name='MenuBar'>
@@ -111,18 +104,34 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	</menubar>
 </ui>
 `
-	uiManager := gtk.NewUIManager()
-	uiManager.AddUIFromString(UIxml)
 
-	ui.accelGroup = uiManager.GetAccelGroup()
-	ui.window.AddAccelGroup(ui.accelGroup)
+	uiman := gtk.NewUIManager()
+	uiman.AddUIFromString(UIxml)
 
-	ui.actionGroup = gtk.NewActionGroup("my_group")
-	uiManager.InsertActionGroup(ui.actionGroup, 0)
+	accels := uiman.GetAccelGroup()
+	w.AddAccelGroup(accels)
 
+	actions := gtk.NewActionGroup("my_group")
+	uiman.InsertActionGroup(actions, 0)
+
+	actions.AddAction(gtk.NewAction("File", "File", "", ""))
+	actions.AddAction(gtk.NewAction("Edit", "Edit", "", ""))
+	actions.AddAction(gtk.NewAction("View", "View", "", ""))
+
+	return &Menu{
+		uiManager:   uiman,
+		accelGroup:  accels,
+		actionGroup: actions,
+	}
+}
+
+func (menu *Menu) GetMenubar() *gtk.Widget {
+	menu.menubar = menu.uiManager.GetWidget("/MenuBar")
+	return menu.menubar
+}
+
+func (ui *UI) SetActions() {
 	// File
-	ui.actionGroup.AddAction(gtk.NewAction("File", "File", "", ""))
-
 	ui.newAction("NewTab", "New Tab", "<control>t", func() { ui.NewTab("") })
 	ui.newActionStock("Open", gtk.STOCK_OPEN, "", ui.Open)
 	ui.newActionStock("Save", gtk.STOCK_SAVE, "", ui.Save)
@@ -159,24 +168,28 @@ func (ui *UI) createUIManager() *gtk.Widget {
 	ui.newActionStock("Quit", gtk.STOCK_QUIT, "", ui.Quit)
 
 	// Edit
-	ui.actionGroup.AddAction(gtk.NewAction("Edit", "Edit", "", ""))
-
-	ui.newActionStock("Find", gtk.STOCK_FIND, "", ui.ShowFindbar)
+	ui.newActionStock("Find", gtk.STOCK_FIND, "", ui.footer.ShowFindbar)
 	ui.newAction("FindNext", "Find Next", "F3", ui.FindNext)
 	ui.newAction("FindPrev", "Find Previous", "<shift>F3", ui.FindPrev)
 
-	ui.newActionStock("Replace", gtk.STOCK_FIND_AND_REPLACE, "<control>h", ui.ShowReplbar)
+	ui.newActionStock("Replace", gtk.STOCK_FIND_AND_REPLACE, "<control>h", ui.footer.ShowReplbar)
 	ui.newAction("ReplaceOne", "Replace One", "<control><shift>h", ui.ReplaceOne)
 	ui.newAction("ReplaceAll", "Replace All", "<control><alt>Return", ui.ReplaceAll)
 	ui.newAction("Preferences", "Preferences", "<control><shift>p", conf.OpenWindow)
 
 	// View
-	ui.actionGroup.AddAction(gtk.NewAction("View", "View", "", ""))
 	ui.newToggleAction("Menubar", "Menubar", "<control>M", conf.UI.MenuBarVisible, ui.ToggleMenuBar)
 
-	ui.menubar = uiManager.GetWidget("/MenuBar")
-
-	return ui.menubar
+	// Footer
+	ui.footer.regBtn.Connect("toggled", ui.Find)
+	ui.footer.caseBtn.Connect("toggled", ui.Find)
+	ui.footer.findEntry.Connect("changed", ui.Find)
+	ui.footer.findNextBtn.Clicked(ui.FindNext)
+	ui.footer.findPrevBtn.Clicked(ui.FindPrev)
+	ui.footer.closeBtn.Clicked(ui.FooterClose)
+	ui.footer.closeBtn.AddAccelerator("activate", ui.menu.accelGroup, gdk.KEY_Escape, 0, gtk.ACCEL_VISIBLE)
+	ui.footer.replBtn.Clicked(ui.ReplaceOne)
+	ui.footer.replAllBtn.Clicked(ui.ReplaceAll)
 }
 
 func (ui *UI) newAction(dst, label, accel string, f interface{}, vars ...interface{}) {
@@ -184,27 +197,27 @@ func (ui *UI) newAction(dst, label, accel string, f interface{}, vars ...interfa
 	if f != nil {
 		action.Connect("activate", f, vars...)
 	}
-	ui.actionGroup.AddActionWithAccel(action, accel)
+	ui.menu.actionGroup.AddActionWithAccel(action, accel)
 }
 
 func (ui *UI) newActionStock(dst, stock, accel string, f interface{}, vars ...interface{}) {
 	action := gtk.NewAction(dst, "", "", stock)
 	action.Connect("activate", f, vars...)
-	ui.actionGroup.AddActionWithAccel(action, accel)
+	ui.menu.actionGroup.AddActionWithAccel(action, accel)
 }
 
 func (ui *UI) newToggleAction(dst, label, accel string, state bool, f func()) {
 	action := gtk.NewToggleAction(dst, label, "", "")
 	action.SetActive(state)
 	action.Connect("activate", f)
-	ui.actionGroup.AddActionWithAccel(&action.Action, accel)
+	ui.menu.actionGroup.AddActionWithAccel(&action.Action, accel)
 }
 
 func (ui *UI) newRadioAction(dst, label, accel string, state bool, n int, f interface{}, vars ...interface{}) *gtk.RadioAction {
 	action := gtk.NewRadioAction(dst, label, "", "", n)
 	action.SetActive(state)
 	action.Connect("changed", f, vars...)
-	ui.actionGroup.AddActionWithAccel(&action.Action, accel)
+	ui.menu.actionGroup.AddActionWithAccel(&action.Action, accel)
 	return action
 }
 
@@ -296,7 +309,7 @@ func (ui *UI) ReplaceAll() {
 
 func (ui *UI) ToggleMenuBar() {
 	conf.UI.MenuBarVisible = !conf.UI.MenuBarVisible
-	ui.menubar.SetVisible(conf.UI.MenuBarVisible)
+	ui.menu.menubar.SetVisible(conf.UI.MenuBarVisible)
 
 }
 func (ui *UI) ToggleStatusBar() {
@@ -381,93 +394,175 @@ func (ui *UI) onSwitchPage(ctx *glib.CallbackContext) {
 	}
 }
 
-func (ui *UI) createFooter() *gtk.Table {
-	ui.footer.table = gtk.NewTable(2, 6, false)
+type Footer struct {
+	table *gtk.Table
+
+	findEntry *gtk.Entry
+	replEntry *gtk.Entry
+
+	regBtn  *gtk.ToggleButton
+	caseBtn *gtk.ToggleButton
+
+	findNextBtn *gtk.Button
+	findPrevBtn *gtk.Button
+
+	replBtn    *gtk.Button
+	replAllBtn *gtk.Button
+
+	closeBtn *gtk.Button
+}
+
+func NewFooter(accels *gtk.AccelGroup) *Footer {
+	footer := new(Footer)
+
+	footer.table = gtk.NewTable(2, 6, false)
 
 	// findbar
 	labelReg := gtk.NewLabel("Re")
 	labelReg.ModifyFG(gtk.STATE_ACTIVE, gdk.NewColor("red"))
-	ui.footer.regBtn = gtk.NewToggleButton()
-	ui.footer.regBtn.Add(labelReg)
-	ui.footer.regBtn.Connect("toggled", ui.Find)
+	footer.regBtn = gtk.NewToggleButton()
+	footer.regBtn.Add(labelReg)
 
 	labelCase := gtk.NewLabel("A")
 	labelCase.ModifyFG(gtk.STATE_ACTIVE, gdk.NewColor("red"))
-	ui.footer.caseBtn = gtk.NewToggleButton()
-	ui.footer.caseBtn.Add(labelCase)
-	ui.footer.caseBtn.SetSizeRequest(20, 20)
-	ui.footer.caseBtn.Connect("toggled", ui.Find)
+	footer.caseBtn = gtk.NewToggleButton()
+	footer.caseBtn.Add(labelCase)
+	footer.caseBtn.SetSizeRequest(20, 20)
 
-	ui.footer.findEntry = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
-	ui.footer.findEntry.Connect("changed", ui.Find)
+	footer.findEntry = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
 
-	ui.footer.findNextBtn = gtk.NewButton()
-	ui.footer.findNextBtn.SetSizeRequest(20, 20)
-	ui.footer.findNextBtn.Add(gtk.NewArrow(gtk.ARROW_DOWN, gtk.SHADOW_NONE))
-	ui.footer.findNextBtn.Clicked(ui.FindNext)
+	footer.findNextBtn = gtk.NewButton()
+	footer.findNextBtn.SetSizeRequest(20, 20)
+	footer.findNextBtn.Add(gtk.NewArrow(gtk.ARROW_DOWN, gtk.SHADOW_NONE))
 
-	ui.footer.findPrevBtn = gtk.NewButton()
-	ui.footer.findPrevBtn.SetSizeRequest(20, 20)
-	ui.footer.findPrevBtn.Add(gtk.NewArrow(gtk.ARROW_UP, gtk.SHADOW_NONE))
-	ui.footer.findPrevBtn.Clicked(ui.FindPrev)
+	footer.findPrevBtn = gtk.NewButton()
+	footer.findPrevBtn.SetSizeRequest(20, 20)
+	footer.findPrevBtn.Add(gtk.NewArrow(gtk.ARROW_UP, gtk.SHADOW_NONE))
 
-	ui.footer.closeBtn = gtk.NewButton()
-	ui.footer.closeBtn.SetSizeRequest(20, 20)
-	ui.footer.closeBtn.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
-	ui.footer.closeBtn.Clicked(ui.FooterClose)
-	ui.footer.closeBtn.AddAccelerator("activate", ui.accelGroup, gdk.KEY_Escape, 0, gtk.ACCEL_VISIBLE)
+	footer.closeBtn = gtk.NewButton()
+	footer.closeBtn.SetSizeRequest(20, 20)
+	footer.closeBtn.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
 
 	// replacebar
-	ui.footer.replEntry = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
-	// ui.footer.replEntry.Connect("changed", OnFindInput)
+	footer.replEntry = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
+	// footer.replEntry.Connect("changed", OnFindInput)
 
-	ui.footer.replBtn = gtk.NewButton()
-	ui.footer.replBtn.SetSizeRequest(20, 20)
-	ui.footer.replBtn.Add(gtk.NewImageFromIconName("text-changelog", gtk.ICON_SIZE_BUTTON))
-	ui.footer.replBtn.Clicked(ui.ReplaceOne)
+	footer.replBtn = gtk.NewButton()
+	footer.replBtn.SetSizeRequest(20, 20)
+	footer.replBtn.Add(gtk.NewImageFromIconName("text-changelog", gtk.ICON_SIZE_BUTTON))
 
-	ui.footer.replAllBtn = gtk.NewButton()
-	ui.footer.replAllBtn.SetSizeRequest(20, 20)
-	ui.footer.replAllBtn.Add(gtk.NewImageFromIconName("text-plain", gtk.ICON_SIZE_BUTTON))
-	ui.footer.replAllBtn.Clicked(ui.ReplaceAll)
+	footer.replAllBtn = gtk.NewButton()
+	footer.replAllBtn.SetSizeRequest(20, 20)
+	footer.replAllBtn.Add(gtk.NewImageFromIconName("text-plain", gtk.ICON_SIZE_BUTTON))
+
 	// btnRepl.Clicked(OnMenuFind)
 
 	// pack to table
-	ui.footer.table.Attach(ui.footer.regBtn, 0, 1, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
-	ui.footer.table.Attach(ui.footer.caseBtn, 1, 2, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
-	ui.footer.table.Attach(ui.footer.findEntry, 2, 3, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
-	ui.footer.table.Attach(ui.footer.findNextBtn, 3, 4, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
-	ui.footer.table.Attach(ui.footer.findPrevBtn, 4, 5, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
-	ui.footer.table.Attach(ui.footer.closeBtn, 5, 6, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.table.Attach(footer.regBtn, 0, 1, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.table.Attach(footer.caseBtn, 1, 2, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.table.Attach(footer.findEntry, 2, 3, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
+	footer.table.Attach(footer.findNextBtn, 3, 4, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.table.Attach(footer.findPrevBtn, 4, 5, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+	footer.table.Attach(footer.closeBtn, 5, 6, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
 
-	ui.footer.table.Attach(ui.footer.replEntry, 2, 3, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
-	ui.footer.table.Attach(ui.footer.replBtn, 3, 4, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
-	ui.footer.table.Attach(ui.footer.replAllBtn, 4, 5, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
+	footer.table.Attach(footer.replEntry, 2, 3, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
+	footer.table.Attach(footer.replBtn, 3, 4, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
+	footer.table.Attach(footer.replAllBtn, 4, 5, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
 
-	return ui.footer.table
+	return footer
 }
 
-func (ui *UI) ShowFindbar() {
-	ui.footer.table.SetVisible(true)
-	ui.footer.replEntry.SetVisible(false)
-	ui.footer.replBtn.SetVisible(false)
-	ui.footer.replAllBtn.SetVisible(false)
+// func (ui *UI) createFooter() *gtk.Table {
+// 	ui.footer.table = gtk.NewTable(2, 6, false)
 
-	ui.footer.findEntry.GrabFocus()
+// 	// findbar
+// 	labelReg := gtk.NewLabel("Re")
+// 	labelReg.ModifyFG(gtk.STATE_ACTIVE, gdk.NewColor("red"))
+// 	ui.footer.regBtn = gtk.NewToggleButton()
+// 	ui.footer.regBtn.Add(labelReg)
+// 	ui.footer.regBtn.Connect("toggled", ui.Find)
+
+// 	labelCase := gtk.NewLabel("A")
+// 	labelCase.ModifyFG(gtk.STATE_ACTIVE, gdk.NewColor("red"))
+// 	ui.footer.caseBtn = gtk.NewToggleButton()
+// 	ui.footer.caseBtn.Add(labelCase)
+// 	ui.footer.caseBtn.SetSizeRequest(20, 20)
+// 	ui.footer.caseBtn.Connect("toggled", ui.Find)
+
+// 	ui.footer.findEntry = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
+// 	ui.footer.findEntry.Connect("changed", ui.Find)
+
+// 	ui.footer.findNextBtn = gtk.NewButton()
+// 	ui.footer.findNextBtn.SetSizeRequest(20, 20)
+// 	ui.footer.findNextBtn.Add(gtk.NewArrow(gtk.ARROW_DOWN, gtk.SHADOW_NONE))
+// 	ui.footer.findNextBtn.Clicked(ui.FindNext)
+
+// 	ui.footer.findPrevBtn = gtk.NewButton()
+// 	ui.footer.findPrevBtn.SetSizeRequest(20, 20)
+// 	ui.footer.findPrevBtn.Add(gtk.NewArrow(gtk.ARROW_UP, gtk.SHADOW_NONE))
+// 	ui.footer.findPrevBtn.Clicked(ui.FindPrev)
+
+// 	ui.footer.closeBtn = gtk.NewButton()
+// 	ui.footer.closeBtn.SetSizeRequest(20, 20)
+// 	ui.footer.closeBtn.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
+// 	ui.footer.closeBtn.Clicked(ui.FooterClose)
+// 	ui.footer.closeBtn.AddAccelerator("activate", ui.accelGroup, gdk.KEY_Escape, 0, gtk.ACCEL_VISIBLE)
+
+// 	// replacebar
+// 	ui.footer.replEntry = gtk.NewEntryWithBuffer(gtk.NewEntryBuffer(""))
+// 	// ui.footer.replEntry.Connect("changed", OnFindInput)
+
+// 	ui.footer.replBtn = gtk.NewButton()
+// 	ui.footer.replBtn.SetSizeRequest(20, 20)
+// 	ui.footer.replBtn.Add(gtk.NewImageFromIconName("text-changelog", gtk.ICON_SIZE_BUTTON))
+// 	ui.footer.replBtn.Clicked(ui.ReplaceOne)
+
+// 	ui.footer.replAllBtn = gtk.NewButton()
+// 	ui.footer.replAllBtn.SetSizeRequest(20, 20)
+// 	ui.footer.replAllBtn.Add(gtk.NewImageFromIconName("text-plain", gtk.ICON_SIZE_BUTTON))
+// 	ui.footer.replAllBtn.Clicked(ui.ReplaceAll)
+// 	// btnRepl.Clicked(OnMenuFind)
+
+// 	// pack to table
+// 	ui.footer.table.Attach(ui.footer.regBtn, 0, 1, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+// 	ui.footer.table.Attach(ui.footer.caseBtn, 1, 2, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+// 	ui.footer.table.Attach(ui.footer.findEntry, 2, 3, 0, 1, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
+// 	ui.footer.table.Attach(ui.footer.findNextBtn, 3, 4, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+// 	ui.footer.table.Attach(ui.footer.findPrevBtn, 4, 5, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+// 	ui.footer.table.Attach(ui.footer.closeBtn, 5, 6, 0, 1, gtk.FILL, gtk.FILL, 0, 0)
+
+// 	ui.footer.table.Attach(ui.footer.replEntry, 2, 3, 1, 2, gtk.EXPAND|gtk.FILL, gtk.FILL, 0, 0)
+// 	ui.footer.table.Attach(ui.footer.replBtn, 3, 4, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
+// 	ui.footer.table.Attach(ui.footer.replAllBtn, 4, 5, 1, 2, gtk.FILL, gtk.FILL, 0, 0)
+
+// 	return ui.footer.table
+// }
+
+func (footer *Footer) ShowFindbar() {
+	footer.table.SetVisible(true)
+	footer.replEntry.SetVisible(false)
+	footer.replBtn.SetVisible(false)
+	footer.replAllBtn.SetVisible(false)
+
+	footer.findEntry.GrabFocus()
 }
 
-func (ui *UI) ShowReplbar() {
-	ui.footer.table.SetVisible(true)
-	ui.footer.replEntry.SetVisible(true)
-	ui.footer.replBtn.SetVisible(true)
-	ui.footer.replAllBtn.SetVisible(true)
+func (footer *Footer) ShowReplbar() {
+	footer.table.SetVisible(true)
+	footer.replEntry.SetVisible(true)
+	footer.replBtn.SetVisible(true)
+	footer.replAllBtn.SetVisible(true)
 
-	ui.footer.replEntry.GrabFocus()
+	footer.replEntry.GrabFocus()
+}
+
+func (footer *Footer) Close() {
+	footer.table.SetVisible(false)
 }
 
 func (ui *UI) FooterClose() {
 	for _, t := range ui.tabs {
 		t.ClearFind()
 	}
-	ui.footer.table.SetVisible(false)
+	ui.footer.Close()
 }
