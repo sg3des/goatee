@@ -229,7 +229,7 @@ func (ui *UI) NewTab(filename string) {
 		return
 	}
 
-	n := ui.notebook.AppendPage(t.swin, t.tab)
+	n := ui.notebook.AppendPage(t.swin, t.eventbox)
 	ui.notebook.ShowAll()
 	ui.notebook.SetCurrentPage(n)
 
@@ -357,14 +357,14 @@ func (ui *UI) changeLanguageCurrentTab(ctx *glib.CallbackContext) {
 	ui.GetCurrentTab().ChangeLanguage(lang)
 }
 
-func (ui *UI) LookupTab(filename string) (*Tab, bool) {
+func (ui *UI) LookupTab(filename string) (*Tab, int, bool) {
 	for n, t := range ui.tabs {
 		if t.Filename == filename {
-			ui.notebook.SetCurrentPage(n)
-			return t, true
+			// ui.notebook.SetCurrentPage(n)
+			return t, n, true
 		}
 	}
-	return nil, false
+	return nil, 0, false
 }
 
 func (ui *UI) CloseCurrentTab() {

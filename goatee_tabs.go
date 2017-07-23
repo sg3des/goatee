@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
+	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
 
@@ -34,6 +35,7 @@ type Tab struct {
 	ReadOnly bool
 	Dirty    bool
 
+	eventbox *gtk.EventBox
 	tab      *gtk.HBox
 	label    *gtk.Label
 	closeBtn *gtk.Button
@@ -64,8 +66,12 @@ func NewTab(filename string) (t *Tab) {
 
 	if len(filename) > 0 {
 		var ok bool
+		var n int
+
 		//reload if this file already open
-		if t, ok = ui.LookupTab(filename); ok {
+		if t, n, ok = ui.LookupTab(filename); ok {
+			ui.notebook.SetCurrentPage(n)
+
 			text, err := t.ReadFile(filename)
 			if err != nil {
 				errorMessage(err)
@@ -140,7 +146,12 @@ func NewTab(filename string) (t *Tab) {
 
 	t.ApplyConf()
 
-	t.tab.ShowAll()
+	// t.tab.ShowAll()
+
+	t.eventbox = gtk.NewEventBox()
+	t.eventbox.Connect("button_press_event", t.onTabPress)
+	t.eventbox.Add(t.tab)
+	t.eventbox.ShowAll()
 
 	t.sourcebuffer.Connect("changed", t.onchange)
 	t.sourcebuffer.Connect("notify::cursor-position", t.onMoveCursor)
@@ -168,7 +179,7 @@ func (t *Tab) ApplyConf() {
 			t.closeBtn = gtk.NewButton()
 			t.closeBtn.Add(gtk.NewImageFromStock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON))
 			t.closeBtn.SetRelief(gtk.RELIEF_NONE)
-			t.closeBtn.Clicked(t.Close)
+			t.closeBtn.Clicked(t.close)
 			t.tab.PackStart(t.closeBtn, false, false, 0)
 		}
 
@@ -201,6 +212,24 @@ func (t *Tab) UpdateMenuSeleted() {
 		ra.SetActive(true)
 	}
 	ui.NoActivate = false
+}
+
+func (t *Tab) onTabPress(ctx *glib.CallbackContext) {
+	arg := ctx.Args(0)
+	event := *(**gdk.EventButton)(unsafe.Pointer(&arg))
+
+	if event.Button == 2 {
+		if _, n, ok := ui.LookupTab(t.Filename); ok {
+			ui.CloseTab(n)
+			return
+		}
+	}
+}
+
+func (t *Tab) close() {
+	if _, n, ok := ui.LookupTab(t.Filename); ok {
+		ui.CloseTab(n)
+	}
 }
 
 func (t *Tab) Close() {
