@@ -72,6 +72,7 @@ func NewConf() *Conf {
 	c := new(Conf)
 	c.filename = path.Join(confdir, "goatee.conf")
 	c.schemeManager = gsv.SourceStyleSchemeManagerGetDefault()
+
 	c.UI.MenuBarVisible = true
 	c.UI.StatusBarVisible = false
 
@@ -121,8 +122,6 @@ func (c *Conf) readConfigFile(filename string) error {
 
 func (c *Conf) Write() {
 	os.MkdirAll(filepath.Dir(c.filename), 0755)
-
-	log.Println("write config to:", c.filename)
 
 	if c.filename == "" {
 		return

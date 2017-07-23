@@ -5,6 +5,7 @@ import (
 	"log"
 	"path"
 	"strconv"
+	"unsafe"
 
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
@@ -40,6 +41,7 @@ func CreateUI() *UI {
 
 	ui.notebook = gtk.NewNotebook()
 	ui.notebook.Connect("switch-page", ui.onSwitchPage)
+	ui.notebook.Connect("page-reordered", ui.onPageReordered)
 	ui.vbox.PackStart(ui.notebook, true, true, 0)
 
 	ui.vbox.PackStart(ui.footer.table, false, false, 0)
@@ -232,6 +234,7 @@ func (ui *UI) NewTab(filename string) {
 	ui.notebook.SetCurrentPage(n)
 
 	ui.notebook.ChildSet(t.swin, "tab-expand", conf.Tabs.Homogeneous)
+	ui.notebook.SetReorderable(t.swin, true)
 
 	t.sourceview.GrabFocus()
 	t.UpdateMenuSeleted()
@@ -367,7 +370,6 @@ func (ui *UI) LookupTab(filename string) (*Tab, bool) {
 func (ui *UI) CloseCurrentTab() {
 	n := ui.notebook.GetCurrentPage()
 	ui.CloseTab(n)
-	// ui.CloseTab(0)
 }
 
 func (ui *UI) CloseTab(n int) {
@@ -386,10 +388,12 @@ func (ui *UI) GetCurrentTab() *Tab {
 	if ui.notebook == nil {
 		return &Tab{}
 	}
+
 	n := ui.notebook.GetCurrentPage()
 	if n < 0 {
 		return nil
 	}
+
 	return ui.tabs[n]
 }
 
@@ -397,6 +401,18 @@ func (ui *UI) onSwitchPage(ctx *glib.CallbackContext) {
 	n, _ := strconv.Atoi(fmt.Sprintf("%v", ctx.Args(1)))
 	if n < len(ui.tabs) {
 		ui.tabs[n].UpdateMenuSeleted()
+	}
+}
+
+func (ui *UI) onPageReordered(ctx *glib.CallbackContext) {
+	child := *gtk.WidgetFromNative(unsafe.Pointer(ctx.Args(0)))
+	i := int(ctx.Args(1))
+
+	for n, t := range ui.tabs {
+		if child.GWidget == t.swin.Container.Widget.GWidget {
+			ui.tabs[n], ui.tabs[i] = ui.tabs[i], ui.tabs[n]
+			break
+		}
 	}
 }
 
