@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/url"
 	"os/user"
 	"strings"
 
@@ -154,5 +155,17 @@ func convertColor(col []int) *gdk.Color {
 }
 
 func resolveFilename(filename string) string {
-	return gio.NewGFileForURI(filename).GetPath()
+	u, err := url.Parse(filename)
+	if err != nil {
+		return filename
+	}
+
+	//if scheme exist, ex: 'sftp://' then parse path with how URI
+	if u.Scheme != "" {
+		filename = gio.NewGFileForURI(filename).GetPath()
+	} else {
+		filename = gio.NewGFileForPath(filename).GetPath()
+	}
+
+	return filename
 }
