@@ -531,13 +531,7 @@ func (t *Tab) DnDHandler(ctx *glib.CallbackContext) {
 		a := (*[2048]uint8)(sdata.GetData())
 		files := strings.Split(string(a[:sdata.GetLength()-1]), "\n")
 		for _, filename := range files {
-
-			filename, err := resolveFilename(filename[:len(filename)-1])
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-
+			filename = resolveFilename(filename[:len(filename)-1])
 			ui.NewTab(filename)
 		}
 	}
