@@ -2,16 +2,13 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
-	"net/url"
-	"os"
 	"os/user"
-	"path"
 	"strings"
 
 	"github.com/mattn/go-gtk/gdk"
+	"github.com/mattn/go-gtk/gio"
 	"github.com/mattn/go-gtk/gtk"
 	gsv "github.com/mattn/go-gtk/gtksourceview"
 
@@ -156,62 +153,6 @@ func convertColor(col []int) *gdk.Color {
 	return gdk.NewColorRGB(r, g, b)
 }
 
-func resolveFilename(filename string) (string, error) {
-	if len(filename) == 0 {
-		return filename, nil
-	}
-
-	u, err := url.Parse(filename)
-	if err != nil {
-		return filename, fmt.Errorf("failed parse path `%s`, reason: %s", filename, err)
-	}
-
-	if len(u.Scheme) == 0 {
-		return filename, nil
-	}
-
-	if len(u.Scheme) == 0 {
-		//
-	} else if u.Scheme == "file" {
-		filename = u.Path
-	} else {
-		filename = path.Join(gvfsPath, fmt.Sprintf("%s:host=%s", u.Scheme, u.Host), u.Path)
-
-		if _, err := os.Stat(filename); err != nil {
-			var ok bool
-			filename, ok = findGVFS(u)
-			if !ok {
-				err := fmt.Errorf("faild recognized path to file")
-				return "", err
-			}
-		}
-	}
-
-	return filename, nil
-}
-
-//crunch!!!!
-func findGVFS(u *url.URL) (string, bool) {
-	dirs, err := ioutil.ReadDir(gvfsPath)
-	if err != nil {
-		return "", false
-	}
-
-	for _, dir := range dirs {
-		if !dir.IsDir() {
-			continue
-		}
-
-		if strings.Contains(dir.Name(), u.Scheme) &&
-			strings.Contains(dir.Name(), u.Host) {
-
-			if strings.Contains(dir.Name(), ",") {
-				p := strings.TrimLeft(u.Path, string(os.PathSeparator))
-				uPath := strings.SplitN(p, string(os.PathSeparator), 2)
-				return path.Join(gvfsPath, dir.Name(), uPath[1]), true
-			}
-			return path.Join(gvfsPath, dir.Name(), u.Path), true
-		}
-	}
-	return "", false
+func resolveFilename(filename string) string {
+	return gio.NewGFileForURI(filename).GetPath()
 }

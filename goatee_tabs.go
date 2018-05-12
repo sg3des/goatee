@@ -57,11 +57,8 @@ type Tab struct {
 }
 
 func NewTab(filename string) (t *Tab) {
-	filename, err := resolveFilename(filename)
-	if err != nil {
-		log.Println(err)
-		errorMessage(err)
-		return
+	if len(filename) > 0 {
+		filename = resolveFilename(filename)
 	}
 
 	if len(filename) > 0 {
