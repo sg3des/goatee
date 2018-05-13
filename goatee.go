@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"net/url"
+	"os"
 	"os/user"
 	"strings"
 
@@ -12,8 +12,6 @@ import (
 	"github.com/mattn/go-gtk/gio"
 	"github.com/mattn/go-gtk/gtk"
 	gsv "github.com/mattn/go-gtk/gtksourceview"
-
-	"github.com/sg3des/argum"
 )
 
 var (
@@ -56,30 +54,29 @@ var (
 		CHARSET_BINARY}
 )
 
-var args struct {
-	Files []string `argum:"pos"`
-}
-
 func init() {
-	log.SetFlags(log.Lshortfile)
-	argum.MustParse(&args)
+	// log.SetFlags(log.Lshortfile)
 
 	user, _ := user.Current()
 	gvfsPath = fmt.Sprintf(gvfsPath, user.Uid)
 
 	conf = NewConf()
-
-	if len(args.Files) == 0 {
-		args.Files = append(args.Files, "")
-	}
 }
 
 func main() {
 	gtk.Init(nil)
 	ui = CreateUI()
 
-	for _, filename := range args.Files {
-		ui.NewTab(filename)
+	switch {
+	case len(os.Args) == 1:
+		ui.NewTab("")
+	case os.Args[1] == "--help" || os.Args[1] == "-h":
+		fmt.Println("Usage:\n\tgoatee [files...]")
+		os.Exit(0)
+	default:
+		for i := 1; i < len(os.Args); i++ {
+			ui.NewTab(os.Args[i])
+		}
 	}
 
 	gtk.Main()
