@@ -675,8 +675,8 @@ func (t *Tab) Find() {
 
 	t.findindex = reg.FindAllStringIndex(t.findtext, conf.Search.MaxItems)
 
-	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]string{"background": "#999999"})
-	t.tagfindCurrent = t.sourcebuffer.CreateTag("findCurr", map[string]string{"background": "#eeaa00"})
+	t.tagfind = t.sourcebuffer.CreateTag("find", map[string]interface{}{"background": "#999999"})
+	t.tagfindCurrent = t.sourcebuffer.CreateTag("findCurr", map[string]interface{}{"background": "#eeaa00"})
 
 	for i, index := range t.findindex {
 		data := []byte(t.findtext)
