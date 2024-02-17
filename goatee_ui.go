@@ -31,6 +31,7 @@ func CreateUI() *UI {
 	ui.window = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	ui.window.SetDefaultSize(600, 300)
 	ui.window.SetSizeRequest(100, 100)
+	ui.window.SetIconName("accessories-text-editor")
 
 	ui.menu = NewMenu(ui.window)
 	ui.footer = NewFooter(ui.menu.accelGroup)
