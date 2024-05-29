@@ -151,7 +151,7 @@ func NewTab(filename string) (t *Tab) {
 	t.eventbox.ShowAll()
 
 	t.sourcebuffer.Connect("changed", t.onchange)
-	t.sourcebuffer.Connect("notify::cursor-position", t.onMoveCursor)
+	t.sourcebuffer.Connect("notify::cursor-moved", t.onMoveCursor) // notify::cursor-position for the old gtksourcebuffer
 
 	return t
 }

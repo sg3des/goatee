@@ -4,7 +4,7 @@ go 1.21.5
 
 require (
 	github.com/djimenez/iconv-go v0.0.0-20160305225143-8960e66bd3da
-	github.com/mattn/go-gtk v0.0.0-20230419095350-e099c1bf7abc
+	github.com/mattn/go-gtk v0.0.0-20240119050609-48574e312fac
 	github.com/naoina/toml v0.1.1
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d
 )
